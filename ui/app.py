@@ -18,14 +18,14 @@ import streamlit as st
 from dotenv import load_dotenv
 
 try:
-    from ui.auth import (
+    from auth import (
         GOOGLE_CLIENT_ID,
         get_google_auth_url,
         handle_oauth_flow,
         logout_user,
     )
-except ImportError:
-    from auth import (
+except (ImportError, KeyError):
+    from ui.auth import (
         GOOGLE_CLIENT_ID,
         get_google_auth_url,
         handle_oauth_flow,
