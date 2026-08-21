@@ -36,11 +36,21 @@ jobs:
           python -m compileall app/ ui/
 
   # ============================================================================
-  # 2. Docker Build & Layer Verification
+  # 2. Parallel Docker Build & Verification (Separate runner VMs with full disk)
   # ============================================================================
   docker-build-verification:
     needs: lint-and-validate
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: backend
+            file: ./Dockerfile.api
+            tag: rag-backend:ci-test
+          - name: ui
+            file: ./Dockerfile.ui
+            tag: rag-ui:ci-test
 
     steps:
       - name: Checkout Code
@@ -49,18 +59,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build FastAPI Backend Image
+      - name: Build ${{ matrix.service.name }} Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.api
+          file: ${{ matrix.service.file }}
           push: false
-          tags: rag-backend:ci-test
-
-      - name: Build Streamlit UI Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.ui
-          push: false
-          tags: rag-ui:ci-test
+          tags: ${{ matrix.service.tag }}
