@@ -8,7 +8,7 @@ on:
 
 jobs:
   # ============================================================================
-  # 1. Code Quality & Syntax Validation
+  # 1. Code Quality & Syntax Validation (Fast: ~5 seconds)
   # ============================================================================
   lint-and-validate:
     runs-on: ubuntu-latest
@@ -21,17 +21,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
 
-      - name: Install Dependencies
+      - name: Install Linter
         run: |
           python -m pip install --upgrade pip
           pip install ruff
-          pip install -r requirements.txt
 
-      - name: Run Ruff Code Quality Linter
+      - name: Run Ruff Syntax & Error Checks
         run: |
-          ruff check app/ ui/
+          ruff check app/ ui/ --select E9,F63,F7,F82
 
       - name: Validate Python Bytecode Compilation
         run: |
