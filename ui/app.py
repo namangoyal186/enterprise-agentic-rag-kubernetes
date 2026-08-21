@@ -227,18 +227,35 @@ if not current_user:
             padding: 12px 24px;
             background-color: #ffffff;
             color: #3c4043;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            text-decoration: none;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: background-color 0.2s, box-shadow 0.2s;
-            margin-top: 20px;
+        /* Native Streamlit Link Button styled as Google SSO */
+        div[data-testid="stLinkButton"] {
+            display: flex !important;
+            justify-content: center !important;
+            margin-top: -15px !important;
+            margin-bottom: 30px !important;
         }
-        .google-btn:hover {
-            background-color: #f8f9fa;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            color: #202124;
+        div[data-testid="stLinkButton"] > a {
+            background-color: #ffffff !important;
+            color: #3c4043 !important;
+            border: 1px solid #dadce0 !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            font-weight: 500 !important;
+            padding: 12px 24px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 12px !important;
+            transition: background-color 0.2s, box-shadow 0.2s !important;
+            max-width: 320px !important;
+            width: 100% !important;
+            text-decoration: none !important;
+        }
+        div[data-testid="stLinkButton"] > a:hover {
+            background-color: #f8f9fa !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
+            color: #202124 !important;
         }
         </style>
         """,
@@ -248,24 +265,20 @@ if not current_user:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown(
-            f"""
+            """
             <div class="login-card">
                 <h1 style="margin-bottom: 8px;">🧠 Agent OS</h1>
                 <p style="color: #9aa0a6; font-size: 15px; margin-bottom: 24px;">
                     Enterprise Multi-Agent RAG with Persistent Memory & Guardrails
                 </p>
-                <a href="{get_google_auth_url()}" target="_top" class="google-btn">
-                    <svg width="20" height="20" viewBox="0 0 48 48">
-                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                    </svg>
-                    Continue with Google
-                </a>
             </div>
             """,
             unsafe_allow_html=True,
+        )
+        st.link_button(
+            "🌐 Continue with Google",
+            get_google_auth_url(),
+            use_container_width=True,
         )
 
     st.stop()
