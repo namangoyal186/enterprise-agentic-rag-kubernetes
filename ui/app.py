@@ -36,6 +36,15 @@ except (ImportError, KeyError):
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=env_path)
 
+# Sync st.secrets into os.environ for Streamlit Cloud
+try:
+    if hasattr(st, "secrets"):
+        for k, v in st.secrets.items():
+            if isinstance(v, str):
+                os.environ[k] = v
+except Exception:
+    pass
+
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 

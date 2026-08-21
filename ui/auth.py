@@ -8,13 +8,20 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
-# Ensure .env is loaded
+# Ensure .env is loaded locally
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=env_path)
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+def get_secret(key: str, default: str = "") -> str:
+    """Retrieve secret from Streamlit Cloud st.secrets or os.environ."""
+    try:
+        if hasattr(st, "secrets") and key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
 
 # Standard Google OAuth Endpoints
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -22,15 +29,27 @@ GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 
+def get_google_client_id() -> str:
+    return get_secret("GOOGLE_CLIENT_ID", "")
+
+
+def get_google_client_secret() -> str:
+    return get_secret("GOOGLE_CLIENT_SECRET", "")
+
+
+def get_backend_url() -> str:
+    return get_secret("BACKEND_URL", "http://localhost:8000")
+
+
 def get_redirect_uri() -> str:
     """Get the current base URL for redirect."""
-    return os.getenv("REDIRECT_URI", "http://localhost:8501")
+    return get_secret("REDIRECT_URI", "http://localhost:8501")
 
 
 def get_google_auth_url() -> str:
     """Construct Google OAuth 2.0 authorization URL."""
     params = {
-        "client_id": GOOGLE_CLIENT_ID,
+        "client_id": get_google_client_id(),
         "redirect_uri": get_redirect_uri(),
         "response_type": "code",
         "scope": "openid email profile",
@@ -44,9 +63,10 @@ def sync_user_background(user_data: dict):
     """Sync user profile to backend or database in background thread."""
     def _sync():
         try:
-            if BACKEND_URL.startswith("https://"):
+            backend = get_backend_url()
+            if backend.startswith("https://"):
                 requests.post(
-                    f"{BACKEND_URL}/api/users/sync",
+                    f"{backend}/api/users/sync",
                     json={
                         "user_id": user_data["user_id"],
                         "email": user_data["email"],
@@ -74,8 +94,8 @@ def exchange_code_for_user(code: str) -> dict | None:
     try:
         token_data = {
             "code": code,
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
+            "client_id": get_google_client_id(),
+            "client_secret": get_google_client_secret(),
             "redirect_uri": get_redirect_uri(),
             "grant_type": "authorization_code",
         }
