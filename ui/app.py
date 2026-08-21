@@ -39,6 +39,51 @@ load_dotenv(dotenv_path=env_path)
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
+@st.cache_resource
+def get_inprocess_client():
+    """Cache in-process FastAPI TestClient for zero-latency execution on cloud/local."""
+    try:
+        from fastapi.testclient import TestClient
+        from app.main import app
+        return TestClient(app)
+    except Exception as e:
+        logfire.warning(f"In-process client init note: {e}")
+        return None
+
+
+def api_request(method: str, path: str, json_data: dict = None, headers: dict = None, timeout: int = 120):
+    """
+    Unified API dispatcher:
+    - If BACKEND_URL starts with 'https://', sends standard network HTTP request.
+    - Otherwise, routes in-process directly to the FastAPI agent app (0ms latency, single-container full stack).
+    """
+    if BACKEND_URL.startswith("https://"):
+        url = f"{BACKEND_URL}{path}"
+        if method.upper() == "GET":
+            return requests.get(url, headers=headers, timeout=timeout)
+        elif method.upper() == "POST":
+            return requests.post(url, json=json_data, headers=headers, timeout=timeout)
+        elif method.upper() == "DELETE":
+            return requests.delete(url, headers=headers, timeout=timeout)
+    else:
+        client = get_inprocess_client()
+        if client is not None:
+            if method.upper() == "GET":
+                return client.get(path, headers=headers)
+            elif method.upper() == "POST":
+                return client.post(path, json=json_data, headers=headers)
+            elif method.upper() == "DELETE":
+                return client.delete(path, headers=headers)
+        # Fallback to local HTTP
+        url = f"{BACKEND_URL}{path}"
+        if method.upper() == "GET":
+            return requests.get(url, headers=headers, timeout=timeout)
+        elif method.upper() == "POST":
+            return requests.post(url, json=json_data, headers=headers, timeout=timeout)
+        elif method.upper() == "DELETE":
+            return requests.delete(url, headers=headers, timeout=timeout)
+
+
 def clean_think_tags(text: str) -> str:
     """Strips internal <think>...</think> reasoning traces from reasoning models."""
     if not isinstance(text, str):
@@ -230,7 +275,7 @@ user_picture = current_user.get("picture")
 def fetch_user_threads(u_id: str):
     """Fetch user threads from backend with generous timeout."""
     try:
-        resp = requests.get(f"{BACKEND_URL}/api/users/{u_id}/threads", timeout=10)
+        resp = api_request("GET", f"/api/users/{u_id}/threads", timeout=10)
         if resp.status_code == 200:
             return resp.json().get("threads", [])
     except Exception as e:
@@ -261,8 +306,9 @@ if "messages" not in st.session_state or st.session_state.get("loaded_thread_id"
     curr_id = st.session_state.current_thread_id
     if curr_id:
         try:
-            hist_resp = requests.get(
-                f"{BACKEND_URL}/api/threads/{curr_id}/history",
+            hist_resp = api_request(
+                "GET",
+                f"/api/threads/{curr_id}/history",
                 timeout=10,
             )
             if hist_resp.status_code == 200:
@@ -319,7 +365,7 @@ with st.sidebar:
                     # Fire background delete request without blocking UI
                     def _delete_bg(target_id, uid):
                         try:
-                            requests.delete(f"{BACKEND_URL}/api/threads/{target_id}?user_id={uid}", timeout=10)
+                            api_request("DELETE", f"/api/threads/{target_id}?user_id={uid}", timeout=10)
                         except Exception as e:
                             print(f"Background thread delete error: {e}")
 
@@ -412,7 +458,6 @@ if prompt := st.chat_input("Ask about your documentation..."):
         with st.status("🔍 Agent is thinking...", expanded=True) as status:
             try:
                 with logfire.span("Calling RAG Backend"):
-                    url = f"{BACKEND_URL}/query"
                     payload = {
                         "q": prompt,
                         "query": prompt,
@@ -423,7 +468,7 @@ if prompt := st.chat_input("Ask about your documentation..."):
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {os.getenv('RAG_API_KEY', '')}",
                     }
-                    response = requests.post(url, json=payload, headers=headers, timeout=180)
+                    response = api_request("POST", "/query", json_data=payload, headers=headers, timeout=180)
                     data = response.json()
 
                 status_text = data.get("status", "")

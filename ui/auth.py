@@ -41,19 +41,28 @@ def get_google_auth_url() -> str:
 
 
 def sync_user_background(user_data: dict):
-    """Sync user profile to backend in background thread to eliminate login delay."""
+    """Sync user profile to backend or database in background thread."""
     def _sync():
         try:
-            requests.post(
-                f"{BACKEND_URL}/api/users/sync",
-                json={
-                    "user_id": user_data["user_id"],
-                    "email": user_data["email"],
-                    "name": user_data["name"],
-                    "picture_url": user_data["picture"],
-                },
-                timeout=10,
-            )
+            if BACKEND_URL.startswith("https://"):
+                requests.post(
+                    f"{BACKEND_URL}/api/users/sync",
+                    json={
+                        "user_id": user_data["user_id"],
+                        "email": user_data["email"],
+                        "name": user_data["name"],
+                        "picture_url": user_data["picture"],
+                    },
+                    timeout=10,
+                )
+            else:
+                from app.db.database import sync_user_profile
+                sync_user_profile(
+                    user_id=user_data["user_id"],
+                    email=user_data["email"],
+                    name=user_data["name"],
+                    picture_url=user_data["picture"],
+                )
         except Exception as e:
             print(f"Background user sync notice: {e}")
 
