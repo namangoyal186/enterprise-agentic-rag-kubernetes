@@ -1,0 +1,35 @@
+# Git & IDE
+.git
+.gitignore
+.gemini
+.idea
+.vscode
+*.swp
+*.swo
+
+# Python & Virtual Environments
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Application Caches & Data
+.logfire/
+DATA/
+processed_data/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Docker & CI
+Dockerfile*
+docker-compose*
+.github/

@@ -1,0 +1,42 @@
+services:
+  # ----------------------------------------------------------------------------
+  # FastAPI Backend Service
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rag-backend-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+    networks:
+      - rag-network
+
+  # ----------------------------------------------------------------------------
+  # Streamlit UI Dashboard
+  # ----------------------------------------------------------------------------
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: rag-frontend-ui
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - BACKEND_URL=http://api:8000
+    depends_on:
+      - api
+    networks:
+      - rag-network
+
+networks:
+  rag-network:
+    driver: bridge
