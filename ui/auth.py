@@ -131,20 +131,50 @@ def exchange_code_for_user(code: str) -> dict | None:
         return None
 
 
+import base64
+import json
+
+
+def encode_session(user_data: dict) -> str:
+    """Encode user data into a clean URL-safe session token."""
+    try:
+        raw_bytes = json.dumps(user_data).encode("utf-8")
+        return base64.urlsafe_b64encode(raw_bytes).decode("utf-8")
+    except Exception:
+        return ""
+
+
+def decode_session(token: str) -> dict | None:
+    """Decode session token back into user data."""
+    try:
+        raw_bytes = base64.urlsafe_b64decode(token.encode("utf-8"))
+        return json.loads(raw_bytes.decode("utf-8"))
+    except Exception:
+        return None
+
+
 def handle_oauth_flow():
     """
-    Check query parameters for OAuth callback code and manage login state.
+    Check query parameters for OAuth callback code or saved session and manage login state.
     """
     # 1. Check in-memory session state first
     if st.session_state.get("user"):
         return st.session_state.user
 
-    # 2. Check query parameters for Google auth redirect callback
     query_params = st.query_params
+
+    # 2. Check for persistent session token in URL (preserves login on browser refresh F5)
+    if "session" in query_params:
+        cached_user = decode_session(query_params["session"])
+        if cached_user and "user_id" in cached_user:
+            st.session_state.user = cached_user
+            return cached_user
+
+    # 3. Check query parameters for Google auth redirect callback (?code=...)
     if "code" in query_params:
         auth_code = query_params["code"]
 
-        # Render loading animation inside card
+        # Render loading animation inside matching Kubernetes Enterprise AI card
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.markdown(
@@ -153,17 +183,47 @@ def handle_oauth_flow():
                 [data-testid="stSidebar"], [data-testid="collapsedControl"] {
                     display: none !important;
                 }
-                .login-card {
-                    max-width: 480px;
-                    margin: 60px auto;
-                    padding: 40px;
-                    background: rgba(255, 255, 255, 0.04);
-                    border: 1px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 16px;
+                .login-card-wrapper {
+                    max-width: 520px;
+                    margin: 50px auto 0 auto;
+                    padding: 38px 34px 28px 34px;
+                    background: rgba(255, 255, 255, 0.03);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 20px;
                     text-align: center;
-                    backdrop-filter: blur(10px);
-                    opacity: 1 !important;
-                    filter: none !important;
+                    backdrop-filter: blur(16px);
+                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+                }
+                .login-title {
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #ffffff;
+                    margin: 0 0 8px 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                }
+                .login-subtitle {
+                    color: #9aa0a6;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    margin-bottom: 22px;
+                }
+                .feature-tags {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                    justify-content: center;
+                    margin-bottom: 24px;
+                }
+                .tag {
+                    background: rgba(255, 255, 255, 0.05);
+                    color: #cbd5e1;
+                    font-size: 11.5px;
+                    padding: 4px 10px;
+                    border-radius: 8px;
+                    border: 1px solid rgba(255, 255, 255, 0.06);
                 }
                 .google-btn-loading {
                     display: inline-flex;
@@ -171,20 +231,19 @@ def handle_oauth_flow():
                     justify-content: center;
                     gap: 12px;
                     width: 100%;
-                    padding: 12px 24px;
+                    max-width: 340px;
+                    padding: 12px 28px;
                     background-color: #ffffff;
-                    color: #3c4043;
-                    border-radius: 8px;
-                    font-size: 16px;
-                    font-weight: 500;
-                    margin-top: 20px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                    opacity: 1 !important;
-                    filter: none !important;
+                    color: #202124;
+                    border-radius: 10px;
+                    font-size: 15px;
+                    font-weight: 600;
+                    margin-top: 10px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
                 }
                 .spinner-ring {
-                    width: 20px;
-                    height: 20px;
+                    width: 18px;
+                    height: 18px;
                     border: 3px solid rgba(0, 0, 0, 0.1);
                     border-top: 3px solid #4285F4;
                     border-right: 3px solid #EA4335;
@@ -198,14 +257,23 @@ def handle_oauth_flow():
                     100% { transform: rotate(360deg); }
                 }
                 </style>
-                <div class="login-card">
-                    <h1 style="margin-bottom: 8px;">🧠 Agent OS</h1>
-                    <p style="color: #9aa0a6; font-size: 15px; margin-bottom: 24px;">
-                        Enterprise Multi-Agent RAG with Persistent Memory & Guardrails
-                    </p>
-                    <div class="google-btn-loading">
-                        <div class="spinner-ring"></div>
-                        <span>Logging In...</span>
+                <div class="login-card-wrapper">
+                    <div class="login-title">☸️ Kubernetes Enterprise AI</div>
+                    <div class="login-subtitle">
+                        Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.
+                    </div>
+                    <div class="feature-tags">
+                        <span class="tag">⚡ Qwen 27B</span>
+                        <span class="tag">🔍 Qdrant Hybrid Vector RAG</span>
+                        <span class="tag">🛡️ NeMo Security Guardrails</span>
+                        <span class="tag">🐘 Neon PostgreSQL Memory</span>
+                        <span class="tag">🚦 Upstash Redis Limiter</span>
+                    </div>
+                    <div style="display: flex; justify-content: center;">
+                        <div class="google-btn-loading">
+                            <div class="spinner-ring"></div>
+                            <span>Logging In...</span>
+                        </div>
                     </div>
                 </div>
                 """,
@@ -215,7 +283,8 @@ def handle_oauth_flow():
         user = exchange_code_for_user(auth_code)
         if user:
             st.session_state.user = user
-            st.query_params.clear()
+            # Store URL-safe session token so page refresh preserves logged-in state
+            st.query_params["session"] = encode_session(user)
             st.rerun()
         else:
             st.error("Failed to complete Google login. Please try again.")
@@ -225,7 +294,7 @@ def handle_oauth_flow():
 
 
 def logout_user():
-    """Log out current user and completely clear local session state."""
+    """Log out current user and completely clear local session state and URL tokens."""
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
