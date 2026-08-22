@@ -128,9 +128,23 @@ hide_sidebar_css = "[data-testid=\"stSidebar\"], [data-testid=\"collapsedControl
 st.markdown(
     f"""
     <style>
-    /* Hide Deploy button and Streamlit developer menu */
-    .stDeployButton, [data-testid="stToolbar"], footer {{
+    /* Hide Deploy button, Streamlit developer menu, footer, and floating badges */
+    .stDeployButton,
+    [data-testid="stToolbar"],
+    div[data-testid="stStatusWidget"],
+    .viewerBadge_container__1QSob,
+    [data-testid="manage-app-button"],
+    div[class*="viewerBadge"],
+    div[class*="ProfileButton"],
+    div[class*="StatusWidget"],
+    div[class*="FloatingActionButton"],
+    a[href*="streamlit.io"],
+    #MainMenu,
+    footer {{
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }}
     
     /* Make header transparent so the sidebar toggle arrow is always accessible on mobile/desktop */
@@ -185,9 +199,9 @@ st.markdown(
             min-width: 280px !important;
             max-width: 85vw !important;
         }}
-        .login-card {{
-            padding: 24px 16px !important;
-            margin: 30px auto !important;
+        .login-card-wrapper {{
+            padding: 28px 18px !important;
+            margin: 20px auto 0 auto !important;
         }}
     }}
     </style>
@@ -212,9 +226,9 @@ if not current_user:
         """
         <style>
         .login-card-wrapper {
-            max-width: 500px;
-            margin: 40px auto 0 auto;
-            padding: 36px 32px 24px 32px;
+            max-width: 520px;
+            margin: 50px auto 0 auto;
+            padding: 38px 34px 28px 34px;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 20px;
@@ -256,7 +270,6 @@ if not current_user:
             flex-wrap: wrap;
             gap: 6px;
             justify-content: center;
-            margin-bottom: 26px;
         }
         .tag {
             background: rgba(255, 255, 255, 0.05);
@@ -267,12 +280,12 @@ if not current_user:
             border: 1px solid rgba(255, 255, 255, 0.06);
         }
         
-        /* Seamless Google SSO Button directly below the feature tags */
+        /* Spacing & Styling for Google SSO Button */
         div[data-testid="stLinkButton"] {
             display: flex !important;
             justify-content: center !important;
-            margin-top: 0px !important;
-            margin-bottom: 40px !important;
+            margin-top: 24px !important;
+            margin-bottom: 50px !important;
         }
         div[data-testid="stLinkButton"] > a {
             background-color: #ffffff !important;
@@ -296,11 +309,6 @@ if not current_user:
             background-color: #f1f3f4 !important;
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
             transform: translateY(-1px) !important;
-        }
-
-        /* Hide Streamlit status badges and developer buttons for public users */
-        div[data-testid="stStatusWidget"], .viewerBadge_container__1QSob, [data-testid="manage-app-button"], footer {
-            display: none !important;
         }
         </style>
         """,
