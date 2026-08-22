@@ -131,24 +131,20 @@ st.set_page_config(
     initial_sidebar_state="expanded" if is_authenticated else "collapsed",
 )
 
-# Custom CSS for polished alignment, hide top header/deploy options, disable grey overlay
+# Custom CSS for polished responsive alignment, mobile viewport support, and clean sidebar toggle
 hide_sidebar_css = "[data-testid=\"stSidebar\"], [data-testid=\"collapsedControl\"] { display: none !important; }" if not is_authenticated else ""
 
 st.markdown(
     f"""
     <style>
-    /* Hide Streamlit header, deploy button, and 3-dots toolbar */
+    /* Hide Deploy button and Streamlit developer menu */
+    .stDeployButton, [data-testid="stToolbar"], footer {{
+        display: none !important;
+    }}
+    
+    /* Make header transparent so the sidebar toggle arrow is always accessible on mobile/desktop */
     header[data-testid="stHeader"] {{
-        display: none !important;
-    }}
-    [data-testid="stToolbar"] {{
-        display: none !important;
-    }}
-    .stDeployButton {{
-        display: none !important;
-    }}
-    footer {{
-        display: none !important;
+        background: transparent !important;
     }}
 
     /* Prevent Streamlit grey-out overlay and dimming during script execution */
@@ -184,6 +180,24 @@ st.markdown(
         padding: 4px 8px !important;
         min-height: 38px !important;
         margin: 0 !important;
+    }}
+
+    /* Responsive Mobile & Tablet Layout Adjustments */
+    @media (max-width: 768px) {{
+        .main .block-container {{
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 2.5rem !important;
+            max-width: 100% !important;
+        }}
+        [data-testid="stSidebar"] {{
+            min-width: 280px !important;
+            max-width: 85vw !important;
+        }}
+        .login-card {{
+            padding: 24px 16px !important;
+            margin: 30px auto !important;
+        }}
     }}
     </style>
     """,
