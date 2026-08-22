@@ -277,7 +277,11 @@ def query(
         GUARDRAILS_BLOCKS_TOTAL.labels(blocked="false").inc()
 
         try:
-            rag_agent = app.state.rag_agent
+            rag_agent = getattr(app.state, "rag_agent", None)
+            if rag_agent is None:
+                startup_event()
+                rag_agent = getattr(app.state, "rag_agent", None)
+
             initial_state = {
                 "messages": [{"role": "user", "content": q}],
                 "current_query": q,

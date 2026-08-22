@@ -51,7 +51,9 @@ def get_inprocess_client():
     """Cache in-process FastAPI TestClient for zero-latency execution on cloud/local."""
     try:
         from fastapi.testclient import TestClient
-        from app.main import app
+        from app.main import app, startup_event
+        if getattr(app.state, "rag_agent", None) is None:
+            startup_event()
         return TestClient(app)
     except Exception as e:
         logfire.warning(f"In-process client init note: {e}")
