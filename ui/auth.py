@@ -37,6 +37,10 @@ def get_google_client_secret() -> str:
     return get_secret("GOOGLE_CLIENT_SECRET", "")
 
 
+GOOGLE_CLIENT_ID = get_google_client_id()
+GOOGLE_CLIENT_SECRET = get_google_client_secret()
+
+
 def get_backend_url() -> str:
     return get_secret("BACKEND_URL", "http://localhost:8000")
 

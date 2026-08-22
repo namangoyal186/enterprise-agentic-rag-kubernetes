@@ -19,14 +19,12 @@ from dotenv import load_dotenv
 
 try:
     from auth import (
-        GOOGLE_CLIENT_ID,
         get_google_auth_url,
         handle_oauth_flow,
         logout_user,
     )
 except (ImportError, KeyError):
     from ui.auth import (
-        GOOGLE_CLIENT_ID,
         get_google_auth_url,
         handle_oauth_flow,
         logout_user,
