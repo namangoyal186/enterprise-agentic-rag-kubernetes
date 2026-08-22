@@ -34,21 +34,25 @@ except (ImportError, KeyError):
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=env_path)
 
-# Sync st.secrets into os.environ for Streamlit Cloud
+# Recursively synchronize all Streamlit Cloud st.secrets into os.environ
+def _sync_secrets(secrets_dict):
+    for k, v in secrets_dict.items():
+        if isinstance(v, dict):
+            _sync_secrets(v)
+        elif isinstance(v, (str, int, float, bool)):
+            os.environ[str(k)] = str(v)
+
 try:
     if hasattr(st, "secrets"):
-        for k, v in st.secrets.items():
-            if isinstance(v, str):
-                os.environ[k] = v
+        _sync_secrets(dict(st.secrets))
 except Exception:
     pass
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
-@st.cache_resource
 def get_inprocess_client():
-    """Cache in-process FastAPI TestClient for zero-latency execution on cloud/local."""
+    """Retrieve FastAPI TestClient with verified startup."""
     try:
         from fastapi.testclient import TestClient
         from app.main import app, startup_event
@@ -56,15 +60,15 @@ def get_inprocess_client():
             startup_event()
         return TestClient(app)
     except Exception as e:
-        logfire.warning(f"In-process client init note: {e}")
+        print(f"In-process client init error: {e}")
         return None
 
 
-def api_request(method: str, path: str, json_data: dict = None, headers: dict = None, timeout: int = 120):
+def api_request(method: str, path: str, json_data: dict = None, headers: dict = None, timeout: int = 180):
     """
     Unified API dispatcher:
     - If BACKEND_URL starts with 'https://', sends standard network HTTP request.
-    - Otherwise, routes in-process directly to the FastAPI agent app (0ms latency, single-container full stack).
+    - Otherwise, routes directly in-process to the FastAPI agent app.
     """
     if BACKEND_URL.startswith("https://"):
         url = f"{BACKEND_URL}{path}"
@@ -74,23 +78,28 @@ def api_request(method: str, path: str, json_data: dict = None, headers: dict = 
             return requests.post(url, json=json_data, headers=headers, timeout=timeout)
         elif method.upper() == "DELETE":
             return requests.delete(url, headers=headers, timeout=timeout)
-    else:
-        client = get_inprocess_client()
-        if client is not None:
+
+    client = get_inprocess_client()
+    if client is not None:
+        try:
             if method.upper() == "GET":
                 return client.get(path, headers=headers)
             elif method.upper() == "POST":
                 return client.post(path, json=json_data, headers=headers)
             elif method.upper() == "DELETE":
                 return client.delete(path, headers=headers)
-        # Fallback to local HTTP
-        url = f"{BACKEND_URL}{path}"
-        if method.upper() == "GET":
-            return requests.get(url, headers=headers, timeout=timeout)
-        elif method.upper() == "POST":
-            return requests.post(url, json=json_data, headers=headers, timeout=timeout)
-        elif method.upper() == "DELETE":
-            return requests.delete(url, headers=headers, timeout=timeout)
+        except Exception as e:
+            print(f"In-process request execution error: {e}")
+            raise e
+
+    # Fallback to local HTTP
+    url = f"{BACKEND_URL}{path}"
+    if method.upper() == "GET":
+        return requests.get(url, headers=headers, timeout=timeout)
+    elif method.upper() == "POST":
+        return requests.post(url, json=json_data, headers=headers, timeout=timeout)
+    elif method.upper() == "DELETE":
+        return requests.delete(url, headers=headers, timeout=timeout)
 
 
 def clean_think_tags(text: str) -> str:
@@ -505,7 +514,11 @@ if prompt := st.chat_input("Ask about your documentation..."):
                         "Authorization": f"Bearer {os.getenv('RAG_API_KEY', '')}",
                     }
                     response = api_request("POST", "/query", json_data=payload, headers=headers, timeout=180)
-                    data = response.json()
+                    data = response.json() if hasattr(response, "json") else {}
+
+                if response.status_code != 200:
+                    err_msg = data.get("message") or data.get("detail") or f"HTTP {response.status_code}"
+                    raise RuntimeError(err_msg)
 
                 status_text = data.get("status", "")
                 if "conversationally" in status_text.lower() or "memory" in status_text.lower():
@@ -540,9 +553,9 @@ if prompt := st.chat_input("Ask about your documentation..."):
                                 st.info(source)
 
             except Exception as e:
-                logfire.error(f"UI-Backend Connection Failed: {e}")
-                status.update(label="❌ Connection Failed", state="error")
-                st.error(f"Backend offline or error: {e}")
+                logfire.error(f"UI-Backend Execution Error: {e}")
+                status.update(label=f"❌ Request Failed", state="error", expanded=True)
+                st.error(f"Execution Error: {e}")
                 st.stop()
 
         # Stream Final Answer smoothly
