@@ -111,8 +111,12 @@ except Exception as e:
     LOGFIRE_STATUS = f"Standby ({e})"
 
 
-# Check authentication state upfront
-is_authenticated = bool(st.session_state.get("user"))
+# Check authentication state upfront (session_state, query_params, or OAuth callback)
+is_authenticated = bool(
+    st.session_state.get("user")
+    or st.query_params.get("session")
+    or st.query_params.get("code")
+)
 
 # --- PAGE CONFIG ---
 st.set_page_config(
