@@ -211,56 +211,96 @@ if not current_user:
     st.markdown(
         """
         <style>
-        .login-card {
-            max-width: 480px;
-            margin: 60px auto;
-            padding: 40px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
+        .login-card-wrapper {
+            max-width: 500px;
+            margin: 40px auto 0 auto;
+            padding: 36px 32px 24px 32px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
             text-align: center;
-            backdrop-filter: blur(10px);
-            opacity: 1 !important;
-            filter: none !important;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
         }
-        .google-btn {
-            display: inline-flex;
+        .kube-badge {
+            display: inline-block;
+            background: rgba(50, 108, 229, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+        }
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0 0 8px 0;
+            display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            width: 100%;
-            padding: 12px 24px;
-            background-color: #ffffff;
-            color: #3c4043;
-        /* Native Streamlit Link Button styled as Google SSO */
+            gap: 10px;
+        }
+        .login-subtitle {
+            color: #9aa0a6;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 22px;
+        }
+        .feature-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-bottom: 26px;
+        }
+        .tag {
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            font-size: 11.5px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        
+        /* Seamless Google SSO Button directly below the feature tags */
         div[data-testid="stLinkButton"] {
             display: flex !important;
             justify-content: center !important;
-            margin-top: -15px !important;
-            margin-bottom: 30px !important;
+            margin-top: 0px !important;
+            margin-bottom: 40px !important;
         }
         div[data-testid="stLinkButton"] > a {
             background-color: #ffffff !important;
-            color: #3c4043 !important;
+            color: #202124 !important;
             border: 1px solid #dadce0 !important;
-            border-radius: 8px !important;
-            font-size: 16px !important;
-            font-weight: 500 !important;
-            padding: 12px 24px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+            border-radius: 10px !important;
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            padding: 12px 28px !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            gap: 12px !important;
-            transition: background-color 0.2s, box-shadow 0.2s !important;
-            max-width: 320px !important;
+            gap: 10px !important;
+            transition: all 0.2s ease-in-out !important;
+            max-width: 340px !important;
             width: 100% !important;
             text-decoration: none !important;
         }
         div[data-testid="stLinkButton"] > a:hover {
-            background-color: #f8f9fa !important;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-            color: #202124 !important;
+            background-color: #f1f3f4 !important;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
+            transform: translateY(-1px) !important;
+        }
+
+        /* Hide Streamlit status badges and developer buttons for public users */
+        div[data-testid="stStatusWidget"], .viewerBadge_container__1QSob, [data-testid="manage-app-button"], footer {
+            display: none !important;
         }
         </style>
         """,
@@ -271,17 +311,25 @@ if not current_user:
     with col2:
         st.markdown(
             """
-            <div class="login-card">
-                <h1 style="margin-bottom: 8px;">🧠 Agent OS</h1>
-                <p style="color: #9aa0a6; font-size: 15px; margin-bottom: 24px;">
-                    Enterprise Multi-Agent RAG with Persistent Memory & Guardrails
-                </p>
+            <div class="login-card-wrapper">
+                <span class="kube-badge">☸️ KUBERNETES ENTERPRISE AI</span>
+                <div class="login-title">🧠 Agent OS</div>
+                <div class="login-subtitle">
+                    Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.
+                </div>
+                <div class="feature-tags">
+                    <span class="tag">⚡ Qwen 27B</span>
+                    <span class="tag">🔍 Qdrant Hybrid Vector RAG</span>
+                    <span class="tag">🛡️ NeMo Security Guardrails</span>
+                    <span class="tag">🐘 Neon PostgreSQL Memory</span>
+                    <span class="tag">🚦 Upstash Redis Limiter</span>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
         st.link_button(
-            "🌐 Continue with Google",
+            "🚀 Continue with Google",
             get_google_auth_url(),
             use_container_width=True,
         )
