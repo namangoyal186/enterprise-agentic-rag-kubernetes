@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
 
     # --- PORTKEY LLM GATEWAY ---
-    PORTKEY_API_KEY: str
+    PORTKEY_API_KEY: str | None = Field(default=None, validation_alias="PORTKEY_API_KEY")
     PORTKEY_PRIMARY_SLUG: str = "marathon-api"
     PORTKEY_FALLBACK_SLUG: str = "anthropic-fallback"
     PORTKEY_PRIMARY_CONFIG_ID: str | None = Field(default=None, validation_alias="PORTKEY_PRIMARY_CONFIG_ID")

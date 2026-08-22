@@ -17,20 +17,7 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
-try:
-    from auth import (
-        get_google_auth_url,
-        handle_oauth_flow,
-        logout_user,
-    )
-except (ImportError, KeyError):
-    from ui.auth import (
-        get_google_auth_url,
-        handle_oauth_flow,
-        logout_user,
-    )
-
-# Load environment variables explicitly from the root directory
+# Load local .env
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=env_path)
 
@@ -48,20 +35,29 @@ try:
 except Exception:
     pass
 
+try:
+    from auth import (
+        get_google_auth_url,
+        handle_oauth_flow,
+        logout_user,
+    )
+except (ImportError, KeyError):
+    from ui.auth import (
+        get_google_auth_url,
+        handle_oauth_flow,
+        logout_user,
+    )
+
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
 def get_inprocess_client():
     """Retrieve FastAPI TestClient with verified startup."""
-    try:
-        from fastapi.testclient import TestClient
-        from app.main import app, startup_event
-        if getattr(app.state, "rag_agent", None) is None:
-            startup_event()
-        return TestClient(app)
-    except Exception as e:
-        print(f"In-process client init error: {e}")
-        return None
+    from fastapi.testclient import TestClient
+    from app.main import app, startup_event
+    if getattr(app.state, "rag_agent", None) is None:
+        startup_event()
+    return TestClient(app)
 
 
 def api_request(method: str, path: str, json_data: dict = None, headers: dict = None, timeout: int = 180):
@@ -80,26 +76,12 @@ def api_request(method: str, path: str, json_data: dict = None, headers: dict = 
             return requests.delete(url, headers=headers, timeout=timeout)
 
     client = get_inprocess_client()
-    if client is not None:
-        try:
-            if method.upper() == "GET":
-                return client.get(path, headers=headers)
-            elif method.upper() == "POST":
-                return client.post(path, json=json_data, headers=headers)
-            elif method.upper() == "DELETE":
-                return client.delete(path, headers=headers)
-        except Exception as e:
-            print(f"In-process request execution error: {e}")
-            raise e
-
-    # Fallback to local HTTP
-    url = f"{BACKEND_URL}{path}"
     if method.upper() == "GET":
-        return requests.get(url, headers=headers, timeout=timeout)
+        return client.get(path, headers=headers)
     elif method.upper() == "POST":
-        return requests.post(url, json=json_data, headers=headers, timeout=timeout)
+        return client.post(path, json=json_data, headers=headers)
     elif method.upper() == "DELETE":
-        return requests.delete(url, headers=headers, timeout=timeout)
+        return client.delete(path, headers=headers)
 
 
 def clean_think_tags(text: str) -> str:
