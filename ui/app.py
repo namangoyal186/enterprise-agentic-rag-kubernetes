@@ -116,8 +116,8 @@ is_authenticated = bool(st.session_state.get("user"))
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Agent OS - Enterprise RAG",
-    page_icon="🧠",
+    page_title="Kubernetes Enterprise AI",
+    page_icon="☸️",
     layout="wide",
     initial_sidebar_state="expanded" if is_authenticated else "collapsed",
 )
@@ -133,18 +133,30 @@ st.markdown(
     [data-testid="stToolbar"],
     div[data-testid="stStatusWidget"],
     .viewerBadge_container__1QSob,
+    .viewerBadge_link__1S137,
     [data-testid="manage-app-button"],
     div[class*="viewerBadge"],
     div[class*="ProfileButton"],
     div[class*="StatusWidget"],
     div[class*="FloatingActionButton"],
+    div[class*="hostedWithStreamlit"],
+    div[class*="createdBy"],
+    div[class*="streamlit-badge"],
+    div[class*="stAppDeployButton"],
+    div[class*="BottomBlock"],
+    a[href*="streamlit.app"],
+    a[href*="share.streamlit.io"],
     a[href*="streamlit.io"],
     #MainMenu,
     footer {{
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
+        height: 0px !important;
+        width: 0px !important;
         pointer-events: none !important;
+        position: absolute !important;
+        left: -9999px !important;
     }}
     
     /* Make header transparent so the sidebar toggle arrow is always accessible on mobile/desktop */
@@ -320,8 +332,8 @@ if not current_user:
         st.markdown(
             """
             <div class="login-card-wrapper">
-                <span class="kube-badge">☸️ KUBERNETES ENTERPRISE AI</span>
-                <div class="login-title">🧠 Agent OS</div>
+                <span class="kube-badge">⚡ PRODUCTION MULTI-AGENT RAG</span>
+                <div class="login-title">☸️ Kubernetes Enterprise AI</div>
                 <div class="login-subtitle">
                     Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.
                 </div>
@@ -410,7 +422,7 @@ if "messages" not in st.session_state or st.session_state.get("loaded_thread_id"
 
 # --- SIDEBAR (ChatGPT Style) ---
 with st.sidebar:
-    st.markdown("### 🧠 **Agent OS**")
+    st.markdown("### ☸️ **Kubernetes AI**")
 
     # + New Chat Button (Instant 0ms Local Update)
     if st.button("➕ **New Chat**", use_container_width=True, type="primary"):
