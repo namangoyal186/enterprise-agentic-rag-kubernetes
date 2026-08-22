@@ -128,7 +128,7 @@ hide_sidebar_css = "[data-testid=\"stSidebar\"], [data-testid=\"collapsedControl
 st.markdown(
     f"""
     <style>
-    /* Hide Deploy button, Streamlit developer menu, footer, and floating badges */
+    /* Hide Deploy button, Streamlit developer menu, footer, and status widgets */
     .stDeployButton,
     [data-testid="stToolbar"],
     div[data-testid="stStatusWidget"],
@@ -144,9 +144,6 @@ st.markdown(
     div[class*="streamlit-badge"],
     div[class*="stAppDeployButton"],
     div[class*="BottomBlock"],
-    a[href*="streamlit.app"],
-    a[href*="share.streamlit.io"],
-    a[href*="streamlit.io"],
     #MainMenu,
     footer {{
         display: none !important;
@@ -332,7 +329,6 @@ if not current_user:
         st.markdown(
             """
             <div class="login-card-wrapper">
-                <span class="kube-badge">⚡ PRODUCTION MULTI-AGENT RAG</span>
                 <div class="login-title">☸️ Kubernetes Enterprise AI</div>
                 <div class="login-subtitle">
                     Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.
