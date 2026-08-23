@@ -1,16 +1,21 @@
-name: Keep Streamlit App Awake
+name: Streamlit Keep Alive 24/7
 
 on:
   schedule:
-    # Runs every 2 days at midnight UTC to prevent Streamlit Community Cloud from sleeping
-    - cron: '0 0 */2 * *'
+    # Runs every 4 hours to maintain an active hot container on Streamlit Community Cloud
+    - cron: '0 */4 * * *'
   workflow_dispatch:
+  push:
+    branches: [ main ]
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit Cloud Deployment
+      - name: Ping Streamlit Cloud Deployment with Browser Headers
         run: |
-          echo "Pinging Streamlit Cloud to maintain active hot instance..."
-          curl -s -L -o /dev/null -w "HTTP Status: %{http_code}\n" https://enterprise-agentic-rag-kubernetes.streamlit.app
+          echo "Pinging Streamlit Cloud app endpoints..."
+          curl -s -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -o /dev/null -w "Root status: %{http_code}\n" "https://enterprise-agentic-rag-kubernetes.streamlit.app"
+          curl -s -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            -o /dev/null -w "Health status: %{http_code}\n" "https://enterprise-agentic-rag-kubernetes.streamlit.app/_stcore/health"
