@@ -187,7 +187,7 @@ def _build_splash(auth_url: str) -> str:
   }}
   var sessionVal = getCookie('kube_rag_session');
   if (sessionVal) {{
-    // Already logged in — redirect immediately (splash shows for <100ms then redirect)
+    // Already logged in — redirect immediately
     var url = new URL(window.location.href);
     if (!url.searchParams.get('session')) {{
       url.searchParams.set('session', sessionVal);
@@ -195,18 +195,37 @@ def _build_splash(auth_url: str) -> str:
     }}
   }}
 
-  // --- Remove splash when Streamlit's React app is ready ─────────────────
+  // --- Only remove splash when Streamlit renders VISIBLE authenticated content ---
+  // We check that stMain actually has visible children (not hidden by CSS).
+  // For unauthenticated users, Streamlit hides stMain via CSS, so the splash
+  // remains as the login UI indefinitely — no double flicker.
   var ticker = setInterval(function() {{
-    var app = document.querySelector('[data-testid="stApp"]') ||
-              document.querySelector('[data-testid="stAppViewContainer"]') ||
-              document.querySelector('.main');
-    if (app) {{
-      clearInterval(ticker);
-      removeSplash();
-    }}
-  }}, 80);
+    var stMain = document.querySelector('[data-testid="stMain"]');
+    if (!stMain) return;
 
-  // Safety: always remove after 90s (e.g. Render cold-start keep-alive)
+    // Check if stMain has visible content (authenticated app rendered)
+    var children = stMain.querySelectorAll(':scope > div');
+    var hasVisibleContent = false;
+    for (var i = 0; i < children.length; i++) {{
+      var child = children[i];
+      var style = window.getComputedStyle(child);
+      if (style.display !== 'none' && style.visibility !== 'hidden') {{
+        // Check it has meaningful content (chat, sidebar, etc.)
+        if (child.innerHTML && child.innerHTML.length > 200) {{
+          hasVisibleContent = true;
+          break;
+        }}
+      }}
+    }}
+
+    if (hasVisibleContent) {{
+      clearInterval(ticker);
+      // Small delay to let Streamlit finish painting before fade
+      setTimeout(removeSplash, 120);
+    }}
+  }}, 100);
+
+  // Safety: remove after 90s regardless (Render cold-start worst case)
   setTimeout(function() {{
     clearInterval(ticker);
     removeSplash();

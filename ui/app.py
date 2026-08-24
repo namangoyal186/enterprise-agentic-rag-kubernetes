@@ -266,145 +266,34 @@ current_user = handle_oauth_flow()
 
 
 # ==============================================================================
-# 1. LOGIN SCREEN (If not authenticated)
+# 1. UNAUTHENTICATED — Splash screen (patched into index.html) is the ONLY login UI
 # ==============================================================================
 if not current_user:
+    # The splash card injected into Streamlit's index.html handles the full login UI.
+    # Streamlit renders NOTHING here — no card, no button — which eliminates the
+    # double-flicker caused by splash + Streamlit card both appearing.
+    #
+    # The only Streamlit work done for unauthenticated users:
+    #   • handle_oauth_flow() above processes ?code= callback (already done)
+    #   • inject_cookie_reader() bridges cookie → ?session= for cross-tab restore
+    #
+    # Hide ALL Streamlit chrome so nothing bleeds through the splash:
     st.markdown(
         """
         <style>
-        .login-card-wrapper {
-            max-width: 520px;
-            margin: 50px auto 0 auto;
-            padding: 38px 34px 28px 34px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            text-align: center;
-            backdrop-filter: blur(16px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-        }
-        .login-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #ffffff;
-            margin: 0 0 8px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        .login-subtitle {
-            color: #9aa0a6;
-            font-size: 14px;
-            line-height: 1.5;
-            margin-bottom: 22px;
-        }
-        .feature-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            justify-content: center;
-        }
-        .tag {
-            background: rgba(255, 255, 255, 0.05);
-            color: #cbd5e1;
-            font-size: 11.5px;
-            padding: 4px 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .google-btn-wrapper {
-            display: flex;
-            justify-content: center;
-            margin-top: 28px;
-            margin-bottom: 50px;
-        }
-        .google-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background-color: #ffffff;
-            color: #202124;
-            border: 1px solid #dadce0;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            padding: 13px 28px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            text-decoration: none;
-            cursor: pointer;
-            max-width: 340px;
-            width: 100%;
-            transition: all 0.2s ease-in-out;
-        }
-        .google-btn:hover {
-            background-color: #f1f3f4;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-            transform: translateY(-1px);
-            text-decoration: none;
-            color: #202124;
-        }
+        /* Ensure Streamlit renders nothing visible while splash is shown */
+        [data-testid="stAppViewContainer"] { background: #0e1117 !important; }
+        [data-testid="stMain"] > div { display: none !important; }
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
+        header[data-testid="stHeader"] { display: none !important; }
+        .stSpinner, .stStatusWidget { display: none !important; }
         </style>
         """,
         unsafe_allow_html=True,
     )
-
-    # Build the Google auth URL before the single render call
-    _auth_url = get_google_auth_url()
-
-    # Single st.markdown renders BOTH card + button in ONE pass — they appear simultaneously
-    # Using inline styles on <a> so Streamlit's global link CSS cannot override them
-    st.markdown(
-        f"""
-        <div style="display:flex; justify-content:center; flex-direction:column; align-items:center;">
-            <div class="login-card-wrapper">
-                <div class="login-title">☸️ Kubernetes Enterprise AI</div>
-                <div class="login-subtitle">
-                    Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph,
-                    Qdrant Hybrid RAG, NeMo Guardrails &amp; Qwen 27B.
-                </div>
-                <div class="feature-tags">
-                    <span class="tag">⚡ Qwen 27B</span>
-                    <span class="tag">🔍 Qdrant Hybrid Vector RAG</span>
-                    <span class="tag">🛡️ NeMo Security Guardrails</span>
-                    <span class="tag">🐘 Neon PostgreSQL Memory</span>
-                    <span class="tag">🚦 Upstash Redis Limiter</span>
-                </div>
-            </div>
-            <div style="display:flex; justify-content:center; margin-top:28px; margin-bottom:50px; width:100%;">
-                <a href="{_auth_url}" target="_self"
-                   style="display:inline-flex !important;
-                          align-items:center !important;
-                          justify-content:center !important;
-                          gap:10px !important;
-                          background-color:#ffffff !important;
-                          color:#202124 !important;
-                          border:1px solid #dadce0 !important;
-                          border-radius:10px !important;
-                          font-size:15px !important;
-                          font-weight:600 !important;
-                          padding:13px 28px !important;
-                          box-shadow:0 4px 12px rgba(0,0,0,0.2) !important;
-                          text-decoration:none !important;
-                          cursor:pointer !important;
-                          max-width:340px !important;
-                          width:88% !important;
-                          transition:all 0.2s ease !important;
-                          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif !important;">
-                    🚀 Continue with Google
-                </a>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Inject async JS cookie reader AFTER card renders — zero blocking.
-    # If a session cookie exists from a previous login, JS redirects with ?session=...
-    # so the next Streamlit rerun picks it up instantly.
+    # Cookie bridge: if user has session cookie, JS redirects with ?session= → auto-login
     inject_cookie_reader()
-
     st.stop()
 
 
