@@ -64,7 +64,7 @@ def get_google_auth_url(redirect_uri: str) -> str:
 def exchange_code_for_user(code: str, redirect_uri: str) -> tuple[Optional[dict], Optional[str]]:
     """
     Exchanges the OAuth authorization code for Google tokens and fetches the user profile.
-    Fast execution (< 250ms).
+    Tries primary redirect_uri and fallback variants to match Google Cloud Console URI settings.
     """
     client_id = settings.GOOGLE_CLIENT_ID or os.getenv("GOOGLE_CLIENT_ID", "")
     client_secret = settings.GOOGLE_CLIENT_SECRET or os.getenv("GOOGLE_CLIENT_SECRET", "")
@@ -72,40 +72,52 @@ def exchange_code_for_user(code: str, redirect_uri: str) -> tuple[Optional[dict]
     if not client_id or not client_secret:
         return None, "GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing."
 
-    try:
-        token_data = {
-            "code": code,
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "redirect_uri": redirect_uri,
-            "grant_type": "authorization_code",
-        }
-        token_resp = requests.post(GOOGLE_TOKEN_ENDPOINT, data=token_data, timeout=8)
-        token_json = token_resp.json()
+    candidates = [redirect_uri]
+    if "/auth/callback" in redirect_uri:
+        candidates.append(redirect_uri.replace("/auth/callback", ""))
+        candidates.append(redirect_uri.replace("/auth/callback", "/"))
+    elif not redirect_uri.endswith("/auth/callback"):
+        candidates.append(f"{redirect_uri.rstrip('/')}/auth/callback")
 
-        access_token = token_json.get("access_token")
-        if not access_token:
-            err = token_json.get("error_description") or token_json.get("error") or str(token_json)
-            return None, f"OAuth Token Error: {err}"
+    last_error = "Unknown exchange error"
+    for uri in candidates:
+        try:
+            token_data = {
+                "code": code,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": uri,
+                "grant_type": "authorization_code",
+            }
+            token_resp = requests.post(GOOGLE_TOKEN_ENDPOINT, data=token_data, timeout=8)
+            token_json = token_resp.json()
 
-        headers = {"Authorization": f"Bearer {access_token}"}
-        userinfo_resp = requests.get(GOOGLE_USERINFO_ENDPOINT, headers=headers, timeout=8)
-        userinfo = userinfo_resp.json()
+            access_token = token_json.get("access_token")
+            if not access_token:
+                last_error = token_json.get("error_description") or token_json.get("error") or str(token_json)
+                continue
 
-        user_data = {
-            "user_id": userinfo.get("sub"),
-            "email": userinfo.get("email", ""),
-            "name": userinfo.get("name", userinfo.get("email", "User")),
-            "picture": userinfo.get("picture", ""),
-            "auth_time": int(time.time()),
-        }
+            headers = {"Authorization": f"Bearer {access_token}"}
+            userinfo_resp = requests.get(GOOGLE_USERINFO_ENDPOINT, headers=headers, timeout=8)
+            userinfo = userinfo_resp.json()
 
-        # Asynchronously sync profile to Neon database
-        sync_user_profile_bg(user_data)
+            user_data = {
+                "user_id": userinfo.get("sub"),
+                "email": userinfo.get("email", ""),
+                "name": userinfo.get("name", userinfo.get("email", "User")),
+                "picture": userinfo.get("picture", ""),
+                "auth_time": int(time.time()),
+            }
 
-        return user_data, None
-    except Exception as e:
-        return None, str(e)
+            # Asynchronously sync profile to Neon database
+            sync_user_profile_bg(user_data)
+
+            return user_data, None
+        except Exception as e:
+            last_error = str(e)
+
+    return None, f"OAuth Token Error: {last_error}"
+
 
 
 def sync_user_profile_bg(user_data: dict):

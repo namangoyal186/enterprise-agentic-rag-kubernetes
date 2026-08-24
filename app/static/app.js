@@ -120,8 +120,26 @@
 
   // --- Authentication ---
   async function checkAuth() {
+    // 1. Check URL parameters for session token or error
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionParam = urlParams.get('session');
+    const errorParam = urlParams.get('error');
+
+    if (errorParam) {
+      console.error('OAuth Error:', errorParam);
+    }
+
+    if (sessionParam) {
+      localStorage.setItem('kube_session', sessionParam);
+      document.cookie = `kube_session=${sessionParam}; path=/; max-age=2592000; samesite=lax`;
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // 2. Query /auth/me with cookie and Authorization Bearer header fallback
     try {
-      const res = await fetch('/auth/me');
+      const storedToken = localStorage.getItem('kube_session');
+      const headers = storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {};
+      const res = await fetch('/auth/me', { headers });
       if (res.ok) {
         const data = await res.json();
         if (data && data.user && data.user.user_id) {
@@ -158,6 +176,8 @@
   }
 
   async function logout() {
+    localStorage.removeItem('kube_session');
+    document.cookie = 'kube_session=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     try {
       await fetch('/auth/logout', { method: 'POST' });
     } catch (e) {
@@ -165,6 +185,7 @@
     }
     window.location.reload();
   }
+
 
   // --- Threads Management ---
   async function loadUserThreads() {

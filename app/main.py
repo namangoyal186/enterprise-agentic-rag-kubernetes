@@ -21,8 +21,10 @@ logfire.configure(
 
 import os
 import time
+import urllib.parse
 import uuid
 from typing import Optional
+
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -274,7 +276,7 @@ def auth_login(request: Request):
 def auth_callback(request: Request, code: Optional[str] = None, error: Optional[str] = None):
     """
     Handles Google OAuth redirect.
-    Exchanges code for tokens in <200ms, sets secure HttpOnly cookie, and redirects to /.
+    Exchanges code for tokens in <200ms, sets cookie + URL session param, and redirects to /.
     """
     if error or not code:
         logfire.warning(f"OAuth callback error: {error or 'No code provided'}")
@@ -286,27 +288,40 @@ def auth_callback(request: Request, code: Optional[str] = None, error: Optional[
     user_data, err_msg = exchange_code_for_user(code, redirect_uri)
     if not user_data:
         logfire.error(f"Failed to exchange OAuth code: {err_msg}")
-        return RedirectResponse(url=f"/?error={err_msg or 'oauth_exchange_failed'}", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse(
+            url=f"/?error={urllib.parse.quote(str(err_msg or 'oauth_exchange_failed'))}",
+            status_code=status.HTTP_302_FOUND,
+        )
 
     session_token = create_session_token(user_data)
+    is_https = (
+        request.url.scheme == "https"
+        or request.headers.get("x-forwarded-proto") == "https"
+        or "render.com" in str(request.base_url)
+    )
 
-    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse(url=f"/?session={session_token}", status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_token,
         max_age=30 * 24 * 60 * 60,  # 30 days
         path="/",
-        httponly=True,
+        httponly=False,
         samesite="lax",
-        secure=request.url.scheme == "https" or "render.com" in str(request.base_url),
+        secure=is_https,
     )
     return response
 
 
 @app.get("/auth/me")
 def auth_me(request: Request):
-    """Returns the authenticated user's profile from the session cookie."""
+    """Returns the authenticated user's profile from the session cookie or Authorization header."""
     token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+
     if not token:
         return {"user": None}
 
@@ -319,6 +334,7 @@ def auth_logout(response: Response):
     """Clears the session cookie and signs out the user."""
     response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
     return {"status": "logged_out"}
+
 
 
 
