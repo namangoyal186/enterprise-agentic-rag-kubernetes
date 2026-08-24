@@ -139,7 +139,7 @@ def _build_splash(auth_url: str) -> str:
   }}
 </style>
 
-<div id="st-splash">
+<div id="st-splash" translate="no">
   <div class="sp-card">
     <div class="sp-title">&#9784;&#65039; Kubernetes Enterprise AI</div>
     <div class="sp-sub">
@@ -222,6 +222,7 @@ def _build_splash(auth_url: str) -> str:
 def patch_index_html() -> bool:
     """
     Locate Streamlit's bundled index.html and inject the splash card.
+    Also sets lang="en" and adds notranslate meta to prevent browser translate popup.
     Safe to call multiple times — skips if already patched.
     Returns True on success, False if skipped or error.
     """
@@ -241,12 +242,26 @@ def patch_index_html() -> bool:
             print("[splash] Already patched — skipping.")
             return True
 
+        import re
+
+        patched = original
+
+        # ── Fix 1: Set lang="en" on <html> tag to prevent browser translate popup ──
+        # Streamlit's index.html may have lang="fr" or no lang attribute at all.
+        patched = re.sub(r'<html([^>]*?)(?:\s+lang="[^"]*")?([^>]*)>',
+                         r'<html\1 lang="en"\2>', patched, count=1)
+
+        # ── Fix 2: Inject notranslate meta + charset in <head> ─────────────────
+        no_translate_meta = (
+            '<meta name="google" content="notranslate">'
+            '<meta http-equiv="Content-Language" content="en">'
+        )
+        patched = re.sub(r'(<head[^>]*>)', r'\1' + no_translate_meta, patched, count=1)
+
+        # ── Fix 3: Inject splash card right after <body> ────────────────────────
         auth_url = _build_auth_url()
         splash_html = _build_splash(auth_url)
-
-        # Inject right after <body> (works for both <body> and <body ...>)
-        import re
-        patched, count = re.subn(r"(<body[^>]*>)", r"\1" + splash_html, original, count=1)
+        patched, count = re.subn(r"(<body[^>]*>)", r"\1" + splash_html, patched, count=1)
 
         if count == 0:
             print("[splash] ⚠ Could not find <body> tag — skipping patch.")
@@ -255,7 +270,7 @@ def patch_index_html() -> bool:
         with open(index_path, "w", encoding="utf-8") as fh:
             fh.write(patched)
 
-        print(f"[splash] ✅ Patched Streamlit index.html — instant splash active.")
+        print(f"[splash] ✅ Patched Streamlit index.html — instant splash + lang=en active.")
         return True
 
     except Exception as exc:
