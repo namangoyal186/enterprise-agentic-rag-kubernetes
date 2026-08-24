@@ -172,37 +172,17 @@ def handle_oauth_flow():
         cached_user = decode_session(session_str)
         if cached_user and "user_id" in cached_user:
             st.session_state.user = cached_user
-            # Sync session token to localStorage for automatic cross-tab authentication
-            components.html(
-                f"""
-                <script>
-                try {{
-                    (window.parent.localStorage || window.localStorage).setItem('kube_rag_session', '{session_str}');
-                }} catch(e) {{}}
-                </script>
-                """,
-                height=0,
-                width=0,
+            # Sync session token to top-level localStorage for automatic cross-tab authentication
+            st.markdown(
+                f"""<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{{localStorage.setItem('kube_rag_session','{session_str}');}}catch(e){{}}" style="display:none;" />""",
+                unsafe_allow_html=True,
             )
             return cached_user
 
     # 3. If no session in URL and not logged in, auto-restore from browser localStorage across tabs
-    components.html(
-        """
-        <script>
-        try {
-            const topStorage = window.parent.localStorage || window.localStorage;
-            const savedSession = topStorage.getItem('kube_rag_session');
-            if (savedSession && !window.parent.location.search.includes('session=')) {
-                const url = new URL(window.parent.location.href);
-                url.searchParams.set('session', savedSession);
-                window.parent.location.replace(url.toString());
-            }
-        } catch(e) {}
-        </script>
-        """,
-        height=0,
-        width=0,
+    st.markdown(
+        """<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{var s=localStorage.getItem('kube_rag_session');if(s&&!window.location.search.includes('session=')){var u=new URL(window.location.href);u.searchParams.set('session',s);window.location.replace(u.toString());}}catch(e){}" style="display:none;" />""",
+        unsafe_allow_html=True,
     )
 
     # 4. Check query parameters for Google auth redirect callback (?code=...)
@@ -321,16 +301,9 @@ def handle_oauth_flow():
             encoded = encode_session(user)
             st.query_params.clear()
             st.query_params["session"] = encoded
-            components.html(
-                f"""
-                <script>
-                try {{
-                    (window.parent.localStorage || window.localStorage).setItem('kube_rag_session', '{encoded}');
-                }} catch(e) {{}}
-                </script>
-                """,
-                height=0,
-                width=0,
+            st.markdown(
+                f"""<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{{localStorage.setItem('kube_rag_session','{encoded}');}}catch(e){{}}" style="display:none;" />""",
+                unsafe_allow_html=True,
             )
             st.rerun()
         else:
@@ -348,15 +321,8 @@ def logout_user():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
-    components.html(
-        """
-        <script>
-        try {
-            (window.parent.localStorage || window.localStorage).removeItem('kube_rag_session');
-        } catch(e) {}
-        </script>
-        """,
-        height=0,
-        width=0,
+    st.markdown(
+        """<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{localStorage.removeItem('kube_rag_session');}catch(e){}" style="display:none;" />""",
+        unsafe_allow_html=True,
     )
     st.rerun()
