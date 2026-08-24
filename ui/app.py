@@ -272,19 +272,6 @@ if not current_user:
             backdrop-filter: blur(16px);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
         }
-        .kube-badge {
-            display: inline-block;
-            background: rgba(50, 108, 229, 0.15);
-            color: #60a5fa;
-            border: 1px solid rgba(96, 165, 250, 0.3);
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 0.8px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            margin-bottom: 14px;
-            text-transform: uppercase;
-        }
         .login-title {
             font-size: 28px;
             font-weight: 700;
@@ -315,50 +302,55 @@ if not current_user:
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.06);
         }
-        
-        /* Spacing & Styling for Google SSO Button */
-        div[data-testid="stLinkButton"] {
-            display: flex !important;
-            justify-content: center !important;
-            margin-top: 24px !important;
-            margin-bottom: 50px !important;
+        .google-btn-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 28px;
+            margin-bottom: 50px;
         }
-        div[data-testid="stLinkButton"] > a {
-            background-color: #ffffff !important;
-            color: #202124 !important;
-            border: 1px solid #dadce0 !important;
-            border-radius: 10px !important;
-            font-size: 15px !important;
-            font-weight: 600 !important;
-            padding: 12px 28px !important;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 10px !important;
-            transition: all 0.2s ease-in-out !important;
-            max-width: 340px !important;
-            width: 100% !important;
-            text-decoration: none !important;
+        .google-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background-color: #ffffff;
+            color: #202124;
+            border: 1px solid #dadce0;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            padding: 13px 28px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            text-decoration: none;
+            cursor: pointer;
+            max-width: 340px;
+            width: 100%;
+            transition: all 0.2s ease-in-out;
         }
-        div[data-testid="stLinkButton"] > a:hover {
-            background-color: #f1f3f4 !important;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3) !important;
-            transform: translateY(-1px) !important;
+        .google-btn:hover {
+            background-color: #f1f3f4;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+            text-decoration: none;
+            color: #202124;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown(
-            """
+    # Build the Google auth URL before the single render call
+    _auth_url = get_google_auth_url()
+
+    # Single st.markdown renders BOTH card + button in ONE pass — they appear simultaneously
+    st.markdown(
+        f"""
+        <div style="display:flex; justify-content:center; flex-direction:column; align-items:center;">
             <div class="login-card-wrapper">
                 <div class="login-title">☸️ Kubernetes Enterprise AI</div>
                 <div class="login-subtitle">
-                    Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.
+                    Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph,
+                    Qdrant Hybrid RAG, NeMo Guardrails &amp; Qwen 27B.
                 </div>
                 <div class="feature-tags">
                     <span class="tag">⚡ Qwen 27B</span>
@@ -368,14 +360,15 @@ if not current_user:
                     <span class="tag">🚦 Upstash Redis Limiter</span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.link_button(
-            "🚀 Continue with Google",
-            get_google_auth_url(),
-            use_container_width=True,
-        )
+            <div class="google-btn-wrapper">
+                <a href="{_auth_url}" class="google-btn" target="_self">
+                    🚀 Continue with Google
+                </a>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Inject async JS cookie reader AFTER card renders — zero blocking.
     # If a session cookie exists from a previous login, JS redirects with ?session=...
