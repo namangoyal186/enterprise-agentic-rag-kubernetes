@@ -291,34 +291,26 @@
     emptyState.classList.add('hidden');
 
     // Append User Message
-    appendMessage('user', query, null, null, false);
+    appendMessage('user', query);
     scrollToBottom();
 
-    // Create Assistant Placeholder with Thinking Indicator
+    // Create Assistant Placeholder with Sleek Typing Indicator
     const assistantRow = document.createElement('div');
     assistantRow.className = 'message-row assistant';
     assistantRow.innerHTML = `
       <div class="message-avatar">🤖</div>
       <div class="message-body">
         <div class="message-author">Kubernetes AI</div>
-        <div class="thought-process-card" id="active-thought-card">
-          <div class="thought-header">
-            <span>⚙️ Agent is reasoning...</span>
-          </div>
-          <div class="thought-list" id="active-thought-list">
-            <div class="thought-item">🔍 Analyzing infrastructure intent...</div>
-          </div>
-        </div>
         <div class="message-content" id="active-message-content">
-          <p class="typing-cursor">▌</p>
+          <div class="typing-indicator">
+            <span></span><span></span><span></span>
+          </div>
         </div>
       </div>
     `;
     messagesContainer.appendChild(assistantRow);
     scrollToBottom();
 
-    const thoughtCard = assistantRow.querySelector('#active-thought-card');
-    const thoughtList = assistantRow.querySelector('#active-thought-list');
     const messageContent = assistantRow.querySelector('#active-message-content');
 
     try {
@@ -340,49 +332,11 @@
         throw new Error(data.message || data.detail || `HTTP ${res.status}`);
       }
 
-      // 1. Render Reasoning Steps
-      const steps = data.thought_process || [];
-      if (steps.length > 0) {
-        thoughtList.innerHTML = '';
-        steps.forEach((step) => {
-          const s = document.createElement('div');
-          s.className = 'thought-item';
-          s.innerHTML = `<span>⚙️</span> <span>${escapeHtml(step)}</span>`;
-          thoughtList.appendChild(s);
-        });
-        thoughtCard.querySelector('.thought-header').innerHTML = `<span>✅ Reasoning Complete (${steps.length} steps)</span>`;
-      } else {
-        thoughtCard.style.display = 'none';
-      }
-
-      // 2. Stream/Render Final Answer
+      // Stream/Render Clean Final Answer (No internal chunks or raw traces shown)
       const rawAnswer = data.answer || data.response || 'No response generated.';
       const cleanAnswer = stripThinkTags(rawAnswer);
+      messageContent.innerHTML = '';
       await streamText(messageContent, cleanAnswer);
-
-      // 3. Render Sources if any
-      const sources = data.sources || [];
-      if (sources.length > 0) {
-        const sourcesCard = document.createElement('div');
-        sourcesCard.className = 'sources-card';
-        sourcesCard.innerHTML = `
-          <div class="sources-header">
-            <span>📄 Retrieved Knowledge Context (${sources.length} sources)</span>
-            <span>▾</span>
-          </div>
-          <div class="sources-list hidden">
-            ${sources.map((s, idx) => `<div class="source-item"><strong>Chunk ${idx + 1}:</strong> ${escapeHtml(s)}</div>`).join('')}
-          </div>
-        `;
-
-        const header = sourcesCard.querySelector('.sources-header');
-        const list = sourcesCard.querySelector('.sources-list');
-        header.addEventListener('click', () => {
-          list.classList.toggle('hidden');
-        });
-
-        assistantRow.querySelector('.message-body').appendChild(sourcesCard);
-      }
 
       // Update Thread Title in Sidebar if it's the first query
       const existing = threads.find((t) => t.thread_id === currentThreadId);
@@ -395,7 +349,6 @@
 
     } catch (err) {
       console.error('Query execution error:', err);
-      thoughtCard.style.display = 'none';
       messageContent.innerHTML = `<p style="color: var(--error);">❌ Execution Error: ${escapeHtml(err.message)}</p>`;
     } finally {
       isGenerating = false;
@@ -404,36 +357,9 @@
     }
   }
 
-  function appendMessage(role, content, thoughtSteps, sources, stream) {
+  function appendMessage(role, content) {
     const row = document.createElement('div');
     row.className = `message-row ${role}`;
-    
-    let thoughtsHtml = '';
-    if (thoughtSteps && thoughtSteps.length > 0) {
-      thoughtsHtml = `
-        <div class="thought-process-card">
-          <div class="thought-header"><span>✅ Reasoning (${thoughtSteps.length} steps)</span></div>
-          <div class="thought-list">
-            ${thoughtSteps.map((s) => `<div class="thought-item"><span>⚙️</span> <span>${escapeHtml(s)}</span></div>`).join('')}
-          </div>
-        </div>
-      `;
-    }
-
-    let sourcesHtml = '';
-    if (sources && sources.length > 0) {
-      sourcesHtml = `
-        <div class="sources-card">
-          <div class="sources-header">
-            <span>📄 Retrieved Knowledge Context (${sources.length} sources)</span>
-            <span>▾</span>
-          </div>
-          <div class="sources-list hidden">
-            ${sources.map((s, idx) => `<div class="source-item"><strong>Chunk ${idx + 1}:</strong> ${escapeHtml(s)}</div>`).join('')}
-          </div>
-        </div>
-      `;
-    }
 
     const cleanContent = stripThinkTags(content);
     const parsedHtml = window.marked ? marked.parse(cleanContent) : escapeHtml(cleanContent);
@@ -442,11 +368,13 @@
       <div class="message-avatar">${role === 'user' ? '👤' : '🤖'}</div>
       <div class="message-body">
         <div class="message-author">${role === 'user' ? (currentUser ? currentUser.name : 'You') : 'Kubernetes AI'}</div>
-        ${thoughtsHtml}
         <div class="message-content">${parsedHtml}</div>
-        ${sourcesHtml}
       </div>
     `;
+
+    messagesContainer.appendChild(row);
+  }
+
 
     // Hook collapsible sources
     const srcHeader = row.querySelector('.sources-header');

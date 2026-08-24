@@ -635,19 +635,11 @@ if prompt := st.chat_input("Ask about your documentation..."):
                 else:
                     raise RuntimeError(f"Unexpected response from backend: {data}")
 
-                # Display reasoning steps
-                for step in steps:
-                    st.write(f"⚙️ {step}")
-
-                # Display sources ONLY if technical/RAG (not conversational greetings)
-                if sources and not is_conversational:
-                    with st.expander(f"📄 View Retrieved Context ({len(sources)} sources)"):
-                        for i, source in enumerate(sources):
-                            preview = str(source)[:100].replace("\n", " ") + "..."
-                            with st.expander(f"Chunk {i + 1}: {preview}"):
-                                st.info(source)
+                # Clean synthesized answer ready
+                pass
 
             except Exception as e:
+
                 if logfire:
                     logfire.error(f"UI-Backend Execution Error: {e}")
                 status.update(label="❌ Request Failed", state="error", expanded=True)
