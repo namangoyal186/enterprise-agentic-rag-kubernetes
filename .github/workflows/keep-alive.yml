@@ -1,8 +1,8 @@
-name: Streamlit Keep Alive 24/7
+name: Keep App Alive 24/7
 
 on:
   schedule:
-    # Runs every 4 hours to maintain an active hot container on Streamlit Community Cloud
+    # Runs every 4 hours to maintain hot active instances
     - cron: '0 */4 * * *'
   workflow_dispatch:
 
@@ -15,19 +15,20 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Ping Streamlit App Endpoints
+      - name: Ping Production Endpoints
         run: |
           python -c "
           import requests
           headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
           urls = [
-              'https://enterprise-agentic-rag-kubernetes.streamlit.app',
-              'https://enterprise-agentic-rag-kubernetes.streamlit.app/?embed=true'
+              'https://enterprise-agentic-rag-kubernetes.onrender.com',
+              'https://enterprise-agentic-rag-kubernetes.onrender.com/_stcore/health',
+              'https://enterprise-agentic-rag-kubernetes.streamlit.app'
           ]
           for u in urls:
               try:
-                  res = requests.get(u, headers=headers, timeout=20)
-                  print(f'Successfully pinged {u} -> Status {res.status_code}')
+                  res = requests.get(u, headers=headers, timeout=25)
+                  print(f'Ping {u} -> Status {res.status_code}')
               except Exception as e:
                   print(f'Notice for {u}: {e}')
           "

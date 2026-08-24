@@ -47,6 +47,9 @@ def get_backend_url() -> str:
 
 def get_redirect_uri() -> str:
     """Get the current base URL for redirect."""
+    render_url = os.getenv("RENDER_EXTERNAL_URL")
+    if render_url:
+        return render_url.rstrip("/")
     return get_secret("REDIRECT_URI", "http://localhost:8501")
 
 
