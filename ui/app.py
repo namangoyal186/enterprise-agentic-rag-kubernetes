@@ -15,6 +15,17 @@ if _current_dir not in sys.path:
 import requests
 import streamlit as st
 
+# ── Instant splash patch (runs once per process, before first page render) ──
+# Injects our login card directly into Streamlit's index.html so the browser
+# receives it on the very first HTTP response — zero WebSocket wait.
+if not os.environ.get("_ST_SPLASH_PATCHED"):
+    try:
+        from patch_streamlit_index import patch_index_html
+        patch_index_html()
+    except Exception:
+        pass
+    os.environ["_ST_SPLASH_PATCHED"] = "1"
+
 # Check in-memory session state for immediate sidebar decision (INSTANT — no query param read)
 _already_logged_in = bool(st.session_state.get("user"))
 
