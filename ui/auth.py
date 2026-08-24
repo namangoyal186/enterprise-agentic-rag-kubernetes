@@ -1,11 +1,9 @@
-"""
-Google OAuth 2.0 OpenID Connect Authentication Helper for Streamlit.
-"""
 import os
 import threading
 import urllib.parse
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
 # Ensure .env is loaded locally
@@ -175,33 +173,36 @@ def handle_oauth_flow():
         if cached_user and "user_id" in cached_user:
             st.session_state.user = cached_user
             # Sync session token to localStorage for automatic cross-tab authentication
-            st.markdown(
+            components.html(
                 f"""
                 <script>
                 try {{
-                    localStorage.setItem('kube_rag_session', '{session_str}');
+                    (window.parent.localStorage || window.localStorage).setItem('kube_rag_session', '{session_str}');
                 }} catch(e) {{}}
                 </script>
                 """,
-                unsafe_allow_html=True,
+                height=0,
+                width=0,
             )
             return cached_user
 
     # 3. If no session in URL and not logged in, auto-restore from browser localStorage across tabs
-    st.markdown(
+    components.html(
         """
         <script>
         try {
-            const savedSession = localStorage.getItem('kube_rag_session');
-            if (savedSession && !window.location.search.includes('session=')) {
-                const url = new URL(window.location.href);
+            const topStorage = window.parent.localStorage || window.localStorage;
+            const savedSession = topStorage.getItem('kube_rag_session');
+            if (savedSession && !window.parent.location.search.includes('session=')) {
+                const url = new URL(window.parent.location.href);
                 url.searchParams.set('session', savedSession);
-                window.location.replace(url.toString());
+                window.parent.location.replace(url.toString());
             }
         } catch(e) {}
         </script>
         """,
-        unsafe_allow_html=True,
+        height=0,
+        width=0,
     )
 
     # 4. Check query parameters for Google auth redirect callback (?code=...)
@@ -320,15 +321,16 @@ def handle_oauth_flow():
             encoded = encode_session(user)
             st.query_params.clear()
             st.query_params["session"] = encoded
-            st.markdown(
+            components.html(
                 f"""
                 <script>
                 try {{
-                    localStorage.setItem('kube_rag_session', '{encoded}');
+                    (window.parent.localStorage || window.localStorage).setItem('kube_rag_session', '{encoded}');
                 }} catch(e) {{}}
                 </script>
                 """,
-                unsafe_allow_html=True,
+                height=0,
+                width=0,
             )
             st.rerun()
         else:
@@ -346,14 +348,15 @@ def logout_user():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
-    st.markdown(
+    components.html(
         """
         <script>
         try {
-            localStorage.removeItem('kube_rag_session');
+            (window.parent.localStorage || window.localStorage).removeItem('kube_rag_session');
         } catch(e) {}
         </script>
         """,
-        unsafe_allow_html=True,
+        height=0,
+        width=0,
     )
     st.rerun()
