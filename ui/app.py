@@ -12,9 +12,24 @@ if _root_dir not in sys.path:
 if _current_dir not in sys.path:
     sys.path.insert(0, _current_dir)
 
-import logfire
 import requests
 import streamlit as st
+
+# Check authentication state upfront for immediate frame render
+is_authenticated = bool(
+    st.session_state.get("user")
+    or st.query_params.get("session")
+    or st.query_params.get("code")
+)
+
+# --- FAST PAGE CONFIG (Must be first Streamlit call) ---
+st.set_page_config(
+    page_title="Kubernetes Enterprise AI",
+    page_icon="☸️",
+    layout="wide",
+    initial_sidebar_state="expanded" if is_authenticated else "collapsed",
+)
+
 from dotenv import load_dotenv
 
 # Load local .env
@@ -51,8 +66,9 @@ except (ImportError, KeyError):
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 
+@st.cache_resource(show_spinner=False)
 def get_inprocess_client():
-    """Retrieve FastAPI TestClient with verified startup."""
+    """Retrieve FastAPI TestClient cached as persistent resource."""
     from fastapi.testclient import TestClient
     from app.main import app, startup_event
     if getattr(app.state, "rag_agent", None) is None:
@@ -93,38 +109,21 @@ def clean_think_tags(text: str) -> str:
 
 
 # Initialize Logfire
-LOGFIRE_STATUS = "Unknown"
+LOGFIRE_STATUS = "Connected & Tracing"
 try:
+    import logfire
     token = os.getenv("LOGFIRE_TOKEN")
     base_url = os.getenv("LOGFIRE_BASE_URL")
     if not base_url and token and token.startswith("pylf_v2_eu_"):
         base_url = "https://logfire-eu.pydantic.dev"
-    if not token:
-        LOGFIRE_STATUS = "Standby (LOGFIRE_TOKEN not set)"
-    else:
+    if token:
         logfire.configure(
             token=token,
             advanced=logfire.AdvancedOptions(base_url=base_url) if base_url else None,
         )
-        LOGFIRE_STATUS = "Connected & Tracing"
-except Exception as e:
-    LOGFIRE_STATUS = f"Standby ({e})"
+except Exception:
+    LOGFIRE_STATUS = "Standby"
 
-
-# Check authentication state upfront (session_state, query_params, or OAuth callback)
-is_authenticated = bool(
-    st.session_state.get("user")
-    or st.query_params.get("session")
-    or st.query_params.get("code")
-)
-
-# --- PAGE CONFIG ---
-st.set_page_config(
-    page_title="Kubernetes Enterprise AI",
-    page_icon="☸️",
-    layout="wide",
-    initial_sidebar_state="expanded" if is_authenticated else "collapsed",
-)
 
 # Custom CSS for polished responsive alignment, mobile viewport support, and clean sidebar toggle
 hide_sidebar_css = "[data-testid=\"stSidebar\"], [data-testid=\"collapsedControl\"] { display: none !important; }" if not is_authenticated else ""
@@ -392,11 +391,12 @@ user_email = current_user.get("email", "")
 user_picture = current_user.get("picture")
 
 
+@st.cache_data(ttl=20, show_spinner=False)
 def fetch_user_threads(u_id: str):
-    """Fetch user threads from backend with generous timeout."""
+    """Fetch user threads from backend with fast cached timeout."""
     try:
-        resp = api_request("GET", f"/api/users/{u_id}/threads", timeout=10)
-        if resp.status_code == 200:
+        resp = api_request("GET", f"/api/users/{u_id}/threads", timeout=8)
+        if resp and resp.status_code == 200:
             return resp.json().get("threads", [])
     except Exception as e:
         print(f"Could not load chat threads: {e}")
