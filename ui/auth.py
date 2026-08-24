@@ -46,11 +46,11 @@ def get_backend_url() -> str:
 
 
 def get_redirect_uri() -> str:
-    """Get the current base URL for redirect."""
+    """Get the current base URL for redirect, strictly normalized."""
     render_url = os.getenv("RENDER_EXTERNAL_URL")
     if render_url:
-        return render_url.rstrip("/")
-    return get_secret("REDIRECT_URI", "http://localhost:8501")
+        return render_url.strip().rstrip("/")
+    return get_secret("REDIRECT_URI", "http://localhost:8501").strip().rstrip("/")
 
 
 def get_google_auth_url() -> str:
@@ -67,13 +67,13 @@ def get_google_auth_url() -> str:
 
 
 def sync_user_background(user_data: dict):
-    """Sync user profile to backend or database in background thread."""
+    """Fire and forget async sync of user profile to Neon database."""
     def _sync():
         try:
-            backend = get_backend_url()
-            if backend.startswith("https://"):
+            backend_url = get_backend_url()
+            if backend_url.startswith("https://"):
                 requests.post(
-                    f"{backend}/api/users/sync",
+                    f"{backend_url}/api/users/sync",
                     json={
                         "user_id": user_data["user_id"],
                         "email": user_data["email"],
@@ -96,26 +96,28 @@ def sync_user_background(user_data: dict):
     threading.Thread(target=_sync, daemon=True).start()
 
 
-def exchange_code_for_user(code: str) -> dict | None:
-    """Exchange authorization code for tokens and fetch user profile."""
+def exchange_code_for_user(code: str) -> tuple[dict | None, str | None]:
+    """Exchange authorization code for tokens and fetch user profile with detailed diagnostics."""
     try:
+        redirect_uri = get_redirect_uri()
         token_data = {
             "code": code,
             "client_id": get_google_client_id(),
             "client_secret": get_google_client_secret(),
-            "redirect_uri": get_redirect_uri(),
+            "redirect_uri": redirect_uri,
             "grant_type": "authorization_code",
         }
-        token_resp = requests.post(GOOGLE_TOKEN_ENDPOINT, data=token_data, timeout=10)
+        token_resp = requests.post(GOOGLE_TOKEN_ENDPOINT, data=token_data, timeout=12)
         token_json = token_resp.json()
 
         access_token = token_json.get("access_token")
         if not access_token:
+            err_desc = token_json.get("error_description") or token_json.get("error") or str(token_json)
             print(f"Failed to get access token: {token_json}")
-            return None
+            return None, f"{err_desc} (Redirect URI: {redirect_uri})"
 
         headers = {"Authorization": f"Bearer {access_token}"}
-        userinfo_resp = requests.get(GOOGLE_USERINFO_ENDPOINT, headers=headers, timeout=10)
+        userinfo_resp = requests.get(GOOGLE_USERINFO_ENDPOINT, headers=headers, timeout=12)
         userinfo = userinfo_resp.json()
 
         user_data = {
@@ -128,10 +130,10 @@ def exchange_code_for_user(code: str) -> dict | None:
         # Non-blocking background sync
         sync_user_background(user_data)
 
-        return user_data
+        return user_data, None
     except Exception as e:
         print(f"OAuth Exchange Error: {e}")
-        return None
+        return None, str(e)
 
 
 import base64
@@ -206,117 +208,11 @@ def handle_oauth_flow():
     if "code" in query_params:
         auth_code = query_params["code"]
 
-        # Render loading animation inside matching Kubernetes Enterprise AI card
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown(
-                """
-                <style>
-                [data-testid="stSidebar"], [data-testid="collapsedControl"] {
-                    display: none !important;
-                }
-                .login-card-wrapper {
-                    max-width: 520px;
-                    margin: 50px auto 0 auto;
-                    padding: 38px 34px 28px 34px;
-                    background: rgba(255, 255, 255, 0.03);
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 20px;
-                    text-align: center;
-                    backdrop-filter: blur(16px);
-                    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-                }
-                .login-title {
-                    font-size: 28px;
-                    font-weight: 700;
-                    color: #ffffff;
-                    margin: 0 0 8px 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 10px;
-                }
-                .login-subtitle {
-                    color: #9aa0a6;
-                    font-size: 14px;
-                    line-height: 1.5;
-                    margin-bottom: 22px;
-                }
-                .feature-tags {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 6px;
-                    justify-content: center;
-                    margin-bottom: 24px;
-                }
-                .tag {
-                    background: rgba(255, 255, 255, 0.05);
-                    color: #cbd5e1;
-                    font-size: 11.5px;
-                    padding: 4px 10px;
-                    border-radius: 8px;
-                    border: 1px solid rgba(255, 255, 255, 0.06);
-                }
-                .google-btn-loading {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 12px;
-                    width: 100%;
-                    max-width: 340px;
-                    padding: 12px 28px;
-                    background-color: #ffffff;
-                    color: #202124;
-                    border-radius: 10px;
-                    font-size: 15px;
-                    font-weight: 600;
-                    margin-top: 10px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                }
-                .spinner-ring {
-                    width: 18px;
-                    height: 18px;
-                    border: 3px solid rgba(0, 0, 0, 0.1);
-                    border-top: 3px solid #4285F4;
-                    border-right: 3px solid #EA4335;
-                    border-bottom: 3px solid #FBBC05;
-                    border-left: 3px solid #34A853;
-                    border-radius: 50%;
-                    animation: spin-ring 0.8s linear infinite;
-                }
-                @keyframes spin-ring {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                </style>
-                <div class="login-card-wrapper">
-                    <div class="login-title">☸️ Kubernetes Enterprise AI</div>
-                    <div class="login-subtitle">
-                        Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.
-                    </div>
-                    <div class="feature-tags">
-                        <span class="tag">⚡ Qwen 27B</span>
-                        <span class="tag">🔍 Qdrant Hybrid Vector RAG</span>
-                        <span class="tag">🛡️ NeMo Security Guardrails</span>
-                        <span class="tag">🐘 Neon PostgreSQL Memory</span>
-                        <span class="tag">🚦 Upstash Redis Limiter</span>
-                    </div>
-                    <div style="display: flex; justify-content: center;">
-                        <div class="google-btn-loading">
-                            <div class="spinner-ring"></div>
-                            <span>Logging In...</span>
-                        </div>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        user = exchange_code_for_user(auth_code)
+        user, err_msg = exchange_code_for_user(auth_code)
         if user:
             st.session_state.user = user
             encoded = encode_session(user)
-            # Store URL-safe session token so page refresh preserves logged-in state
+            st.query_params.clear()
             st.query_params["session"] = encoded
             st.markdown(
                 f"""
@@ -330,7 +226,10 @@ def handle_oauth_flow():
             )
             st.rerun()
         else:
-            st.error("Failed to complete Google login. Please try again.")
+            st.query_params.clear()
+            st.error(f"❌ Google Login Error: {err_msg}")
+            if st.button("🔄 Try Again", type="primary", use_container_width=True):
+                st.rerun()
             st.stop()
 
     return None
