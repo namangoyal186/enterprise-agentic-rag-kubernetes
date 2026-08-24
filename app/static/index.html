@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kubernetes Enterprise AI</title>
+  <meta name="description" content="Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails & Qwen 27B.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☸️</text></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Marked.js & Highlight.js for Chat Markdown & Code Highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- =========================================================================
+       1. UNAUTHENTICATED LANDING SCREEN (Instant Pre-Rendered Card)
+       ========================================================================= -->
+  <div id="login-view" class="view-container">
+    <div class="login-card-wrapper">
+      <div class="login-title">
+        <span class="kube-icon">☸️</span>
+        <span>Kubernetes Enterprise AI</span>
+      </div>
+      <div class="login-subtitle">
+        Autonomous Cloud-Native IT Copilot powered by Multi-Agent LangGraph, Qdrant Hybrid RAG, NeMo Guardrails &amp; Qwen 27B.
+      </div>
+      <div class="feature-tags">
+        <span class="tag">⚡ Qwen 27B</span>
+        <span class="tag">🔍 Qdrant Hybrid Vector RAG</span>
+        <span class="tag">🛡️ NeMo Security Guardrails</span>
+        <span class="tag">🐘 Neon PostgreSQL Memory</span>
+        <span class="tag">🚦 Upstash Redis Limiter</span>
+      </div>
+    </div>
+    <div class="google-btn-wrapper">
+      <a href="/auth/login" id="google-login-btn" class="google-sso-link">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Continue with Google</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       2. AUTHENTICATED CHAT INTERFACE (ChatGPT / Gemini Dark UI)
+       ========================================================================= -->
+  <div id="chat-view" class="view-container hidden">
+    
+    <!-- Sidebar Toggle (Mobile & Desktop) -->
+    <button id="sidebar-toggle-btn" class="sidebar-toggle" aria-label="Toggle Sidebar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <span class="brand-icon">☸️</span>
+          <span class="brand-name">Kubernetes AI</span>
+        </div>
+      </div>
+
+      <button id="new-chat-btn" class="btn-new-chat">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>New Chat</span>
+      </button>
+
+      <div class="sidebar-section-title">Recent Conversations</div>
+      <div id="threads-list" class="threads-list">
+        <!-- Injected dynamically by app.js -->
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="system-status">
+          <span class="status-dot"></span>
+          <span class="status-text" id="logfire-badge">Tracing Active</span>
+        </div>
+
+        <div class="user-profile">
+          <div id="user-avatar" class="user-avatar">U</div>
+          <div class="user-info">
+            <div id="user-name" class="user-name">Loading...</div>
+            <div id="user-email" class="user-email">...</div>
+          </div>
+          <button id="logout-btn" class="btn-logout" title="Sign Out">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <main class="chat-main">
+      <header class="chat-header">
+        <h1 id="current-thread-title" class="thread-title">New Chat</h1>
+      </header>
+
+      <div id="messages-container" class="messages-container">
+        <!-- Messages & thought processes injected by app.js -->
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">🤖</div>
+          <h2>How can I help with your Kubernetes cluster?</h2>
+          <p>Ask about Pod networking, Helm rollouts, ingress debugging, or cluster security policies.</p>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <footer class="chat-input-wrapper">
+        <form id="chat-form" class="chat-form">
+          <textarea 
+            id="prompt-input" 
+            placeholder="Ask about your Kubernetes infrastructure..." 
+            rows="1" 
+            autofocus
+          ></textarea>
+          <button type="submit" id="send-btn" class="btn-send" aria-label="Send query" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </form>
+      </footer>
+    </main>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

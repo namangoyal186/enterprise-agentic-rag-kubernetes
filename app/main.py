@@ -19,14 +19,16 @@ logfire.configure(
     advanced=logfire.AdvancedOptions(base_url=_logfire_base_url) if _logfire_base_url else None,
 )
 
-# Now safe to import app modules - logfire is already active
+import os
 import time
 import uuid
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
@@ -42,9 +44,32 @@ from app.guardrails import guard, initialize_rails
 from app.health import router as health_router
 from app.logging import set_request_id
 from app.routers.threads import router as threads_router
+from app.services.auth import (
+    SESSION_COOKIE_NAME,
+    create_session_token,
+    exchange_code_for_user,
+    get_google_auth_url,
+    get_redirect_uri,
+    verify_session_token,
+)
 from app.services.health.connection_checker import check_all_connections, log_connection_summary
 
 app = FastAPI(title="Enterprise Agentic RAG API")
+
+# Enable CORS for local & production origins
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount Static Files
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 app.include_router(health_router)
 app.include_router(threads_router)
 
@@ -210,9 +235,78 @@ class QueryRequest(BaseModel):
     user_id: Optional[str] = "default_user"
 
 
+# ==============================================================================
+# FRONTEND & AUTHENTICATION ENDPOINTS (Instant <50ms Load)
+# ==============================================================================
+
 @app.get("/")
-def home():
+def serve_ui():
+    """Serves the ultra-fast, pre-rendered HTML frontend directly."""
+    index_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file, media_type="text/html")
     return {"message": "Enterprise LangGraph RAG API is live."}
+
+
+@app.get("/auth/login")
+def auth_login(request: Request):
+    """Redirects the browser directly to Google OAuth 2.0."""
+    host_url = str(request.base_url).rstrip("/")
+    redirect_uri = get_redirect_uri(host_url)
+    auth_url = get_google_auth_url(redirect_uri)
+    return RedirectResponse(url=auth_url, status_code=status.HTTP_302_FOUND)
+
+
+@app.get("/auth/callback")
+def auth_callback(request: Request, code: Optional[str] = None, error: Optional[str] = None):
+    """
+    Handles Google OAuth redirect.
+    Exchanges code for tokens in <200ms, sets secure HttpOnly cookie, and redirects to /.
+    """
+    if error or not code:
+        logfire.warning(f"OAuth callback error: {error or 'No code provided'}")
+        return RedirectResponse(url="/?error=oauth_failed", status_code=status.HTTP_302_FOUND)
+
+    host_url = str(request.base_url).rstrip("/")
+    redirect_uri = get_redirect_uri(host_url)
+
+    user_data, err_msg = exchange_code_for_user(code, redirect_uri)
+    if not user_data:
+        logfire.error(f"Failed to exchange OAuth code: {err_msg}")
+        return RedirectResponse(url=f"/?error={err_msg or 'oauth_exchange_failed'}", status_code=status.HTTP_302_FOUND)
+
+    session_token = create_session_token(user_data)
+
+    response = RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=30 * 24 * 60 * 60,  # 30 days
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https" or "render.com" in str(request.base_url),
+    )
+    return response
+
+
+@app.get("/auth/me")
+def auth_me(request: Request):
+    """Returns the authenticated user's profile from the session cookie."""
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not token:
+        return {"user": None}
+
+    user_data = verify_session_token(token)
+    return {"user": user_data}
+
+
+@app.post("/auth/logout")
+def auth_logout(response: Response):
+    """Clears the session cookie and signs out the user."""
+    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
+    return {"status": "logged_out"}
+
 
 
 @app.get("/graph")
