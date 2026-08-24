@@ -76,18 +76,6 @@ def get_inprocess_client():
     return TestClient(app)
 
 
-# Asynchronously pre-warm the backend in background on app startup
-import threading
-def _prewarm_backend():
-    try:
-        if not BACKEND_URL.startswith("https://"):
-            get_inprocess_client()
-    except Exception as e:
-        print(f"Prewarm notice: {e}")
-
-threading.Thread(target=_prewarm_backend, daemon=True).start()
-
-
 def api_request(method: str, path: str, json_data: dict = None, headers: dict = None, timeout: int = 180):
     """
     Unified API dispatcher:
