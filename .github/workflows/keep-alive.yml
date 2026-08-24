@@ -5,17 +5,29 @@ on:
     # Runs every 4 hours to maintain an active hot container on Streamlit Community Cloud
     - cron: '0 */4 * * *'
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit Cloud Deployment with Browser Headers
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Ping Streamlit App Endpoints
         run: |
-          echo "Pinging Streamlit Cloud app endpoints..."
-          curl -s -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-            -o /dev/null -w "Root status: %{http_code}\n" "https://enterprise-agentic-rag-kubernetes.streamlit.app"
-          curl -s -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-            -o /dev/null -w "Health status: %{http_code}\n" "https://enterprise-agentic-rag-kubernetes.streamlit.app/_stcore/health"
+          python -c "
+          import requests
+          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
+          urls = [
+              'https://enterprise-agentic-rag-kubernetes.streamlit.app',
+              'https://enterprise-agentic-rag-kubernetes.streamlit.app/?embed=true'
+          ]
+          for u in urls:
+              try:
+                  res = requests.get(u, headers=headers, timeout=20)
+                  print(f'Successfully pinged {u} -> Status {res.status_code}')
+              except Exception as e:
+                  print(f'Notice for {u}: {e}')
+          "

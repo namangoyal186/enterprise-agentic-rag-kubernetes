@@ -165,6 +165,31 @@ st.markdown(
         background: transparent !important;
     }}
 
+    /* Guarantee sidebar open/close toggle arrow is ALWAYS visible and clickable */
+    [data-testid="collapsedControl"] {{
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        z-index: 999999 !important;
+        top: 14px !important;
+        left: 14px !important;
+        position: fixed !important;
+    }}
+    [data-testid="collapsedControl"] button {{
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        border-radius: 8px !important;
+        color: #ffffff !important;
+        padding: 6px 10px !important;
+    }}
+    [data-testid="collapsedControl"] button:hover {{
+        background: rgba(255, 255, 255, 0.22) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+    }}
+
     /* Prevent Streamlit grey-out overlay and dimming during script execution */
     div[data-testid="stAppViewContainer"] > section {{
         opacity: 1 !important;

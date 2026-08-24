@@ -165,12 +165,41 @@ def handle_oauth_flow():
 
     # 2. Check for persistent session token in URL (preserves login on browser refresh F5)
     if "session" in query_params:
-        cached_user = decode_session(query_params["session"])
+        session_str = query_params["session"]
+        cached_user = decode_session(session_str)
         if cached_user and "user_id" in cached_user:
             st.session_state.user = cached_user
+            # Sync session token to localStorage for automatic cross-tab authentication
+            st.markdown(
+                f"""
+                <script>
+                try {{
+                    localStorage.setItem('kube_rag_session', '{session_str}');
+                }} catch(e) {{}}
+                </script>
+                """,
+                unsafe_allow_html=True,
+            )
             return cached_user
 
-    # 3. Check query parameters for Google auth redirect callback (?code=...)
+    # 3. If no session in URL and not logged in, auto-restore from browser localStorage across tabs
+    st.markdown(
+        """
+        <script>
+        try {
+            const savedSession = localStorage.getItem('kube_rag_session');
+            if (savedSession && !window.location.search.includes('session=')) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('session', savedSession);
+                window.location.replace(url.toString());
+            }
+        } catch(e) {}
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 4. Check query parameters for Google auth redirect callback (?code=...)
     if "code" in query_params:
         auth_code = query_params["code"]
 
@@ -283,8 +312,19 @@ def handle_oauth_flow():
         user = exchange_code_for_user(auth_code)
         if user:
             st.session_state.user = user
+            encoded = encode_session(user)
             # Store URL-safe session token so page refresh preserves logged-in state
-            st.query_params["session"] = encode_session(user)
+            st.query_params["session"] = encoded
+            st.markdown(
+                f"""
+                <script>
+                try {{
+                    localStorage.setItem('kube_rag_session', '{encoded}');
+                }} catch(e) {{}}
+                </script>
+                """,
+                unsafe_allow_html=True,
+            )
             st.rerun()
         else:
             st.error("Failed to complete Google login. Please try again.")
@@ -294,8 +334,18 @@ def handle_oauth_flow():
 
 
 def logout_user():
-    """Log out current user and completely clear local session state and URL tokens."""
+    """Log out current user and completely clear local session state and localStorage."""
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
+    st.markdown(
+        """
+        <script>
+        try {
+            localStorage.removeItem('kube_rag_session');
+        } catch(e) {}
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
     st.rerun()
