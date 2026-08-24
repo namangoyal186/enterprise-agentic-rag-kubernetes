@@ -86,13 +86,37 @@
       await logout();
     });
 
-    // Mobile Sidebar Toggle
+    // Sidebar Expand & Collapse Toggles (Desktop & Mobile)
+    const sidebarExpandBtn = document.getElementById('sidebar-expand-btn');
+    const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+
+    if (sidebarExpandBtn) {
+      sidebarExpandBtn.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.toggle('open');
+        } else {
+          sidebar.classList.toggle('collapsed');
+        }
+      });
+    }
+
+    if (sidebarCollapseBtn) {
+      sidebarCollapseBtn.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('open');
+        } else {
+          sidebar.classList.add('collapsed');
+        }
+      });
+    }
+
     if (sidebarToggleBtn) {
       sidebarToggleBtn.addEventListener('click', () => {
         sidebar.classList.toggle('open');
       });
     }
   }
+
 
   // --- Authentication ---
   async function checkAuth() {
