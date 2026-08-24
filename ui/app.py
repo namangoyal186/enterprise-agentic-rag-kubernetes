@@ -106,21 +106,24 @@ def clean_think_tags(text: str) -> str:
     return cleaned if cleaned else text
 
 
-# Initialize Logfire
+# Initialize Logfire lazily
 LOGFIRE_STATUS = "Connected & Tracing"
-try:
-    import logfire
-    token = os.getenv("LOGFIRE_TOKEN")
-    base_url = os.getenv("LOGFIRE_BASE_URL")
-    if not base_url and token and token.startswith("pylf_v2_eu_"):
-        base_url = "https://logfire-eu.pydantic.dev"
-    if token:
-        logfire.configure(
-            token=token,
-            advanced=logfire.AdvancedOptions(base_url=base_url) if base_url else None,
-        )
-except Exception:
-    LOGFIRE_STATUS = "Standby"
+def init_logfire():
+    global LOGFIRE_STATUS
+    try:
+        import logfire
+        token = os.getenv("LOGFIRE_TOKEN")
+        base_url = os.getenv("LOGFIRE_BASE_URL")
+        if not base_url and token and token.startswith("pylf_v2_eu_"):
+            base_url = "https://logfire-eu.pydantic.dev"
+        if token:
+            logfire.configure(
+                token=token,
+                advanced=logfire.AdvancedOptions(base_url=base_url) if base_url else None,
+            )
+    except Exception:
+        LOGFIRE_STATUS = "Standby"
+
 
 
 # Custom CSS for polished responsive alignment, mobile viewport support, and clean sidebar toggle
@@ -378,10 +381,13 @@ if not current_user:
 # 2. AUTHENTICATED CHATBOT APPLICATION (ChatGPT / Gemini Style)
 # ==============================================================================
 
+init_logfire()
+
 user_id = current_user["user_id"]
 user_name = current_user.get("name", "User")
 user_email = current_user.get("email", "")
 user_picture = current_user.get("picture")
+
 
 
 @st.cache_data(ttl=20, show_spinner=False)
