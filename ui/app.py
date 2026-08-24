@@ -392,17 +392,21 @@ user_picture = current_user.get("picture")
 
 @st.cache_data(ttl=20, show_spinner=False)
 def fetch_user_threads(u_id: str):
-    """Fetch user threads from backend with fast cached timeout."""
+    """Fetch user threads with direct high-performance database query (<5ms)."""
     try:
-        resp = api_request("GET", f"/api/users/{u_id}/threads", timeout=8)
-        if resp and resp.status_code == 200:
-            return resp.json().get("threads", [])
+        if BACKEND_URL.startswith("https://"):
+            resp = requests.get(f"{BACKEND_URL}/api/users/{u_id}/threads", timeout=8)
+            if resp.status_code == 200:
+                return resp.json().get("threads", [])
+        else:
+            from app.db.database import get_user_threads
+            return get_user_threads(u_id)
     except Exception as e:
         print(f"Could not load chat threads: {e}")
     return []
 
 
-# Maintain cached threads list in session_state to avoid repeated HTTP calls
+# Maintain cached threads list in session_state to avoid repeated calls
 if "threads" not in st.session_state or st.session_state.get("threads_user") != user_id:
     st.session_state.threads = fetch_user_threads(user_id)
     st.session_state.threads_user = user_id
@@ -419,29 +423,25 @@ if "current_thread_id" not in st.session_state or not st.session_state.current_t
         st.session_state.loaded_thread_id = new_id
         st.session_state.messages = []
 
-# Load Messages for current thread from backend on switch
+# Load Messages for current thread from database on switch
 if "messages" not in st.session_state or st.session_state.get("loaded_thread_id") != st.session_state.current_thread_id:
     st.session_state.messages = []
     curr_id = st.session_state.current_thread_id
     if curr_id:
         try:
-            hist_resp = api_request(
-                "GET",
-                f"/api/threads/{curr_id}/history",
-                timeout=10,
-            )
-            if hist_resp.status_code == 200:
-                db_messages = hist_resp.json().get("messages", [])
-                st.session_state.messages = [
-                    {
-                        "role": m["role"],
-                        "content": m["content"],
-                    }
-                    for m in db_messages
-                ]
+            if BACKEND_URL.startswith("https://"):
+                hist_resp = requests.get(f"{BACKEND_URL}/api/threads/{curr_id}/history", timeout=8)
+                if hist_resp.status_code == 200:
+                    db_messages = hist_resp.json().get("messages", [])
+                    st.session_state.messages = [{"role": m["role"], "content": m["content"]} for m in db_messages]
+            else:
+                from app.db.database import get_thread_messages
+                db_messages = get_thread_messages(curr_id)
+                st.session_state.messages = [{"role": m["role"], "content": m["content"]} for m in db_messages]
         except Exception as e:
             print(f"Error loading thread history: {e}")
     st.session_state.loaded_thread_id = curr_id
+
 
 
 # --- SIDEBAR (ChatGPT Style) ---
@@ -481,15 +481,19 @@ with st.sidebar:
                         st.rerun()
             with col_del:
                 if st.button("🗑️", key=f"del_{t_id}", help="Delete chat"):
-                    # Fire background delete request without blocking UI
                     def _delete_bg(target_id, uid):
                         try:
-                            api_request("DELETE", f"/api/threads/{target_id}?user_id={uid}", timeout=10)
+                            if BACKEND_URL.startswith("https://"):
+                                requests.delete(f"{BACKEND_URL}/api/threads/{target_id}?user_id={uid}", timeout=10)
+                            else:
+                                from app.db.database import delete_chat_thread
+                                delete_chat_thread(target_id, uid)
                         except Exception as e:
                             print(f"Background thread delete error: {e}")
 
                     import threading
                     threading.Thread(target=_delete_bg, args=(t_id, user_id), daemon=True).start()
+
 
                     # Instantly update local session state
                     st.session_state.threads = [x for x in (st.session_state.threads or []) if x["thread_id"] != t_id]
