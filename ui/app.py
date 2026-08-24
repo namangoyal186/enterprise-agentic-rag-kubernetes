@@ -20,8 +20,12 @@ try:
 except ImportError:
     logfire = None
 
-# Check in-memory session state for immediate sidebar decision
-_already_logged_in = bool(st.session_state.get("user"))
+# Check in-memory session state or URL parameters for immediate sidebar expansion
+_already_logged_in = (
+    bool(st.session_state.get("user"))
+    or ("session" in st.query_params)
+    or ("code" in st.query_params)
+)
 
 # --- FAST PAGE CONFIG (Must be first Streamlit call) ---
 st.set_page_config(
@@ -30,6 +34,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded" if _already_logged_in else "collapsed",
 )
+
 
 from dotenv import load_dotenv
 
