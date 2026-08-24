@@ -15,7 +15,12 @@ if _current_dir not in sys.path:
 import requests
 import streamlit as st
 
-# Check in-memory session state for immediate sidebar decision (INSTANT — no query param read)
+try:
+    import logfire
+except ImportError:
+    logfire = None
+
+# Check in-memory session state for immediate sidebar decision
 _already_logged_in = bool(st.session_state.get("user"))
 
 # --- FAST PAGE CONFIG (Must be first Streamlit call) ---
@@ -106,12 +111,17 @@ def clean_think_tags(text: str) -> str:
     return cleaned if cleaned else text
 
 
+
 # Initialize Logfire lazily
-LOGFIRE_STATUS = "Connected & Tracing"
+LOGFIRE_STATUS = "Connected & Tracing" if logfire else "Standby"
+
+
 def init_logfire():
     global LOGFIRE_STATUS
+    if not logfire:
+        LOGFIRE_STATUS = "Standby"
+        return
     try:
-        import logfire
         token = os.getenv("LOGFIRE_TOKEN")
         base_url = os.getenv("LOGFIRE_BASE_URL")
         if not base_url and token and token.startswith("pylf_v2_eu_"):
@@ -121,8 +131,11 @@ def init_logfire():
                 token=token,
                 advanced=logfire.AdvancedOptions(base_url=base_url) if base_url else None,
             )
+            LOGFIRE_STATUS = "Connected & Tracing"
     except Exception:
         LOGFIRE_STATUS = "Standby"
+
+
 
 
 
@@ -580,19 +593,18 @@ if prompt := st.chat_input("Ask about your documentation..."):
 
         with st.status("🔍 Agent is thinking...", expanded=True) as status:
             try:
-                with logfire.span("Calling RAG Backend"):
-                    payload = {
-                        "q": prompt,
-                        "query": prompt,
-                        "thread_id": curr_id,
-                        "user_id": user_id,
-                    }
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {os.getenv('RAG_API_KEY', '')}",
-                    }
-                    response = api_request("POST", "/query", json_data=payload, headers=headers, timeout=180)
-                    data = response.json() if hasattr(response, "json") else {}
+                payload = {
+                    "q": prompt,
+                    "query": prompt,
+                    "thread_id": curr_id,
+                    "user_id": user_id,
+                }
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {os.getenv('RAG_API_KEY', '')}",
+                }
+                response = api_request("POST", "/query", json_data=payload, headers=headers, timeout=180)
+                data = response.json() if hasattr(response, "json") else {}
 
                 if response.status_code != 200:
                     err_msg = data.get("message") or data.get("detail") or f"HTTP {response.status_code}"
@@ -631,8 +643,9 @@ if prompt := st.chat_input("Ask about your documentation..."):
                                 st.info(source)
 
             except Exception as e:
-                logfire.error(f"UI-Backend Execution Error: {e}")
-                status.update(label=f"❌ Request Failed", state="error", expanded=True)
+                if logfire:
+                    logfire.error(f"UI-Backend Execution Error: {e}")
+                status.update(label="❌ Request Failed", state="error", expanded=True)
                 st.error(f"Execution Error: {e}")
                 st.stop()
 
@@ -658,5 +671,6 @@ if prompt := st.chat_input("Ask about your documentation..."):
         else:
             st.session_state.threads = [{"thread_id": curr_id, "title": clean_title}] + (st.session_state.threads or [])
 
-        logfire.info("Chat cycle completed successfully.")
+        if logfire:
+            logfire.info("Chat cycle completed successfully.")
         st.rerun()
