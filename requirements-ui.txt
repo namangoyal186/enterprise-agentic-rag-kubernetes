@@ -2,6 +2,7 @@
 # STREAMLIT UI LIGHTWEIGHT DEPENDENCIES (Zero Heavy ML Wheels)
 # ==============================================================================
 streamlit>=1.35.0
+extra-streamlit-components>=0.1.70
 requests>=2.31.0
 python-dotenv>=1.0.0
 logfire>=0.40.0

@@ -1,4 +1,5 @@
 import os
+import datetime
 import threading
 import urllib.parse
 import requests
@@ -9,6 +10,16 @@ from dotenv import load_dotenv
 # Ensure .env is loaded locally
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=env_path)
+
+
+@st.cache_resource(show_spinner=False)
+def get_cookie_manager():
+    """Retrieve persistent CookieManager instance."""
+    try:
+        import extra_streamlit_components as stx
+        return stx.CookieManager(key="kube_auth_cookie_mgr")
+    except Exception:
+        return None
 
 
 def get_secret(key: str, default: str = "") -> str:
@@ -158,32 +169,41 @@ def decode_session(token: str) -> dict | None:
 
 def handle_oauth_flow():
     """
-    Check query parameters for OAuth callback code or saved session and manage login state.
+    Check query parameters, cookies, or OAuth callback code and manage persistent login.
     """
     # 1. Check in-memory session state first
     if st.session_state.get("user"):
         return st.session_state.user
 
     query_params = st.query_params
+    cookie_mgr = get_cookie_manager()
 
-    # 2. Check for persistent session token in URL (preserves login on browser refresh F5)
+    # 2. Check browser cookie for cross-tab persistence
+    if cookie_mgr:
+        try:
+            cookie_session = cookie_mgr.get(cookie="kube_rag_session")
+            if cookie_session:
+                cached_user = decode_session(cookie_session)
+                if cached_user and "user_id" in cached_user:
+                    st.session_state.user = cached_user
+                    st.query_params["session"] = cookie_session
+                    return cached_user
+        except Exception:
+            pass
+
+    # 3. Check for persistent session token in URL (preserves login on browser refresh F5)
     if "session" in query_params:
         session_str = query_params["session"]
         cached_user = decode_session(session_str)
         if cached_user and "user_id" in cached_user:
             st.session_state.user = cached_user
-            # Sync session token to top-level localStorage for automatic cross-tab authentication
-            st.markdown(
-                f"""<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{{localStorage.setItem('kube_rag_session','{session_str}');}}catch(e){{}}" style="display:none;" />""",
-                unsafe_allow_html=True,
-            )
+            if cookie_mgr:
+                try:
+                    expires = datetime.datetime.now() + datetime.timedelta(days=30)
+                    cookie_mgr.set("kube_rag_session", session_str, expires_at=expires)
+                except Exception:
+                    pass
             return cached_user
-
-    # 3. If no session in URL and not logged in, auto-restore from browser localStorage across tabs
-    st.markdown(
-        """<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{var s=localStorage.getItem('kube_rag_session');if(s&&!window.location.search.includes('session=')){var u=new URL(window.location.href);u.searchParams.set('session',s);window.location.replace(u.toString());}}catch(e){}" style="display:none;" />""",
-        unsafe_allow_html=True,
-    )
 
     # 4. Check query parameters for Google auth redirect callback (?code=...)
     if "code" in query_params:
@@ -301,10 +321,12 @@ def handle_oauth_flow():
             encoded = encode_session(user)
             st.query_params.clear()
             st.query_params["session"] = encoded
-            st.markdown(
-                f"""<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{{localStorage.setItem('kube_rag_session','{encoded}');}}catch(e){{}}" style="display:none;" />""",
-                unsafe_allow_html=True,
-            )
+            if cookie_mgr:
+                try:
+                    expires = datetime.datetime.now() + datetime.timedelta(days=30)
+                    cookie_mgr.set("kube_rag_session", encoded, expires_at=expires)
+                except Exception:
+                    pass
             st.rerun()
         else:
             st.query_params.clear()
@@ -317,12 +339,14 @@ def handle_oauth_flow():
 
 
 def logout_user():
-    """Log out current user and completely clear local session state and localStorage."""
+    """Log out current user and completely clear local session state, cookies, and query params."""
+    cookie_mgr = get_cookie_manager()
+    if cookie_mgr:
+        try:
+            cookie_mgr.delete("kube_rag_session")
+        except Exception:
+            pass
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()
-    st.markdown(
-        """<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" onload="try{localStorage.removeItem('kube_rag_session');}catch(e){}" style="display:none;" />""",
-        unsafe_allow_html=True,
-    )
     st.rerun()

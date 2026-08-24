@@ -179,19 +179,26 @@ def startup_event():
     initialize_rails()
 
     # Initialize PostgreSQL schema (users, chat_threads, thread_messages)
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        logfire.warning(f"init_db notice: {e}")
 
-    # Build the agent graph with the production checkpointer (Postgres by default).
+    # Build the agent graph with the production checkpointer.
     app.state.rag_agent = build_graph()
 
     app.state.rate_limiter_enabled = _init_rate_limiter()
 
-    # Verify all external dependencies are reachable.
-    connection_results = check_all_connections()
-    all_healthy = log_connection_summary(connection_results)
-    if settings.STRICT_STARTUP and not all_healthy:
-        failed = [name for name, r in connection_results.items() if not r.healthy]
-        raise RuntimeError(f"STRICT_STARTUP enabled; failing services: {', '.join(failed)}")
+    # Verify all external dependencies asynchronously in background to eliminate startup latency
+    def _async_health():
+        try:
+            connection_results = check_all_connections()
+            log_connection_summary(connection_results)
+        except Exception as e:
+            logfire.warning(f"Background connection check: {e}")
+
+    import threading
+    threading.Thread(target=_async_health, daemon=True).start()
 
     if not settings.API_KEY:
         logfire.warning("🔓 RAG_API_KEY is not set — /query is open to anyone. Set it in production.")

@@ -8,6 +8,7 @@ uvicorn[standard]
 python-dotenv
 requests
 streamlit
+extra-streamlit-components
 numpy
 pytz
 nest-asyncio
