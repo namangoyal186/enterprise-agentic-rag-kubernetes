@@ -354,6 +354,7 @@ if not current_user:
     _auth_url = get_google_auth_url()
 
     # Single st.markdown renders BOTH card + button in ONE pass — they appear simultaneously
+    # Using inline styles on <a> so Streamlit's global link CSS cannot override them
     st.markdown(
         f"""
         <div style="display:flex; justify-content:center; flex-direction:column; align-items:center;">
@@ -371,8 +372,26 @@ if not current_user:
                     <span class="tag">🚦 Upstash Redis Limiter</span>
                 </div>
             </div>
-            <div class="google-btn-wrapper">
-                <a href="{_auth_url}" class="google-btn" target="_self">
+            <div style="display:flex; justify-content:center; margin-top:28px; margin-bottom:50px; width:100%;">
+                <a href="{_auth_url}" target="_self"
+                   style="display:inline-flex !important;
+                          align-items:center !important;
+                          justify-content:center !important;
+                          gap:10px !important;
+                          background-color:#ffffff !important;
+                          color:#202124 !important;
+                          border:1px solid #dadce0 !important;
+                          border-radius:10px !important;
+                          font-size:15px !important;
+                          font-weight:600 !important;
+                          padding:13px 28px !important;
+                          box-shadow:0 4px 12px rgba(0,0,0,0.2) !important;
+                          text-decoration:none !important;
+                          cursor:pointer !important;
+                          max-width:340px !important;
+                          width:88% !important;
+                          transition:all 0.2s ease !important;
+                          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif !important;">
                     🚀 Continue with Google
                 </a>
             </div>
