@@ -240,12 +240,19 @@ class QueryRequest(BaseModel):
 # ==============================================================================
 
 @app.get("/")
-def serve_ui():
-    """Serves the ultra-fast, pre-rendered HTML frontend directly."""
+def serve_ui(request: Request, code: Optional[str] = None, error: Optional[str] = None):
+    """
+    Serves the ultra-fast, pre-rendered HTML frontend directly.
+    Also handles OAuth callback seamlessly if Google redirects to root (/?code=...).
+    """
+    if code:
+        return auth_callback(request, code=code, error=error)
+
     index_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
     if os.path.exists(index_file):
         return FileResponse(index_file, media_type="text/html")
     return {"message": "Enterprise LangGraph RAG API is live."}
+
 
 
 @app.get("/auth/login")
