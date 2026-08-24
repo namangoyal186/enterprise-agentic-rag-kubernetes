@@ -12,12 +12,13 @@ env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path=env_path)
 
 
-@st.cache_resource(show_spinner=False)
 def get_cookie_manager():
-    """Retrieve persistent CookieManager instance."""
+    """Retrieve CookieManager instance stored safely in session state."""
     try:
         import extra_streamlit_components as stx
-        return stx.CookieManager(key="kube_auth_cookie_mgr")
+        if "cookie_manager" not in st.session_state:
+            st.session_state.cookie_manager = stx.CookieManager(key="kube_auth_cookie_mgr")
+        return st.session_state.cookie_manager
     except Exception:
         return None
 
