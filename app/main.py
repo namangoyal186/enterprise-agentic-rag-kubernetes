@@ -201,21 +201,26 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_sch
 
 @app.on_event("startup")
 def startup_event():
-    initialize_rails()
-
-    # Initialize PostgreSQL schema (users, chat_threads, thread_messages)
-    try:
-        init_db()
-    except Exception as e:
-        logfire.warning(f"init_db notice: {e}")
-
-    # Build the agent graph with the production checkpointer.
-    app.state.rag_agent = build_graph()
-
+    # 1. Ultra-fast startup (<10ms) so uvicorn binds port instantly for Render health checks
     app.state.rate_limiter_enabled = _init_rate_limiter()
 
-    # Verify all external dependencies asynchronously in background to eliminate startup latency
-    def _async_health():
+    # 2. Initialize PostgreSQL schema and warm up heavy models in background
+    def _async_warmup():
+        try:
+            init_db()
+        except Exception as e:
+            logfire.warning(f"init_db notice: {e}")
+
+        try:
+            initialize_rails()
+        except Exception as e:
+            logfire.warning(f"initialize_rails notice: {e}")
+
+        try:
+            app.state.rag_agent = build_graph()
+        except Exception as e:
+            logfire.warning(f"build_graph notice: {e}")
+
         try:
             connection_results = check_all_connections()
             log_connection_summary(connection_results)
@@ -223,10 +228,11 @@ def startup_event():
             logfire.warning(f"Background connection check: {e}")
 
     import threading
-    threading.Thread(target=_async_health, daemon=True).start()
+    threading.Thread(target=_async_warmup, daemon=True).start()
 
     if not settings.API_KEY:
         logfire.warning("🔓 RAG_API_KEY is not set — /query is open to anyone. Set it in production.")
+
 
 
 class QueryRequest(BaseModel):
