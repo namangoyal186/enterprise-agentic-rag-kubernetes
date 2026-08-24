@@ -12,17 +12,6 @@ env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path=env_path)
 
 
-def get_cookie_manager():
-    """Retrieve CookieManager instance stored safely in session state."""
-    try:
-        import extra_streamlit_components as stx
-        if "cookie_manager" not in st.session_state:
-            st.session_state.cookie_manager = stx.CookieManager(key="kube_auth_cookie_mgr")
-        return st.session_state.cookie_manager
-    except Exception:
-        return None
-
-
 def get_secret(key: str, default: str = "") -> str:
     """Retrieve secret from Streamlit Cloud st.secrets or os.environ."""
     try:
@@ -37,6 +26,9 @@ def get_secret(key: str, default: str = "") -> str:
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+# Cookie name constant
+SESSION_COOKIE = "kube_rag_session"
 
 
 def get_google_client_id() -> str:
@@ -168,59 +160,75 @@ def decode_session(token: str) -> dict | None:
         return None
 
 
+def _set_js_cookie(name: str, value: str, days: int = 30):
+    """Inject a JavaScript snippet to set a browser cookie (non-blocking, no iframe)."""
+    expiry = (datetime.datetime.now() + datetime.timedelta(days=days)).strftime(
+        "%a, %d %b %Y %H:%M:%S GMT"
+    )
+    js = f"""
+    <script>
+    (function() {{
+        document.cookie = "{name}={value}; expires={expiry}; path=/; SameSite=Lax; Secure";
+    }})();
+    </script>
+    """
+    components.html(js, height=0, width=0)
+
+
+def _delete_js_cookie(name: str):
+    """Inject JavaScript to delete a browser cookie."""
+    js = f"""
+    <script>
+    (function() {{
+        document.cookie = "{name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax";
+    }})();
+    </script>
+    """
+    components.html(js, height=0, width=0)
+
+
+def _read_cookie_from_query() -> str | None:
+    """
+    Read the session cookie value passed as a query param '?cookie_val=...'
+    This is used by the JS cookie-reader bridge (set up in the main app).
+    """
+    return st.query_params.get("cookie_val")
+
+
 def handle_oauth_flow():
     """
-    Check query parameters, cookies, or OAuth callback code and manage persistent login.
+    FAST: Check query parameters or OAuth callback code and manage persistent login.
+    Cookie reads happen via URL param bridge — zero blocking iframe components.
     """
-    # 1. Check in-memory session state first
+    # 1. Check in-memory session state first (INSTANT — no network, no iframe)
     if st.session_state.get("user"):
         return st.session_state.user
 
     query_params = st.query_params
-    cookie_mgr = get_cookie_manager()
 
-    # 2. Check browser cookie for cross-tab persistence
-    if cookie_mgr:
-        try:
-            cookie_session = cookie_mgr.get(cookie="kube_rag_session")
-            if cookie_session:
-                cached_user = decode_session(cookie_session)
-                if cached_user and "user_id" in cached_user:
-                    st.session_state.user = cached_user
-                    st.query_params["session"] = cookie_session
-                    return cached_user
-        except Exception:
-            pass
-
-    # 3. Check for persistent session token in URL (preserves login on browser refresh F5)
+    # 2. Check for persistent session token in URL query param (preserves login on refresh)
     if "session" in query_params:
         session_str = query_params["session"]
         cached_user = decode_session(session_str)
         if cached_user and "user_id" in cached_user:
             st.session_state.user = cached_user
-            if cookie_mgr:
-                try:
-                    expires = datetime.datetime.now() + datetime.timedelta(days=30)
-                    cookie_mgr.set("kube_rag_session", session_str, expires_at=expires)
-                except Exception:
-                    pass
             return cached_user
 
-    # 4. Check query parameters for Google auth redirect callback (?code=...)
+    # 3. Handle Google OAuth callback (?code=...)
     if "code" in query_params:
         auth_code = query_params["code"]
-        user, err_msg = exchange_code_for_user(auth_code)
+
+        # Show a loading spinner while exchanging the auth code
+        with st.spinner("🔐 Signing you in with Google..."):
+            user, err_msg = exchange_code_for_user(auth_code)
+
         if user:
             st.session_state.user = user
             encoded = encode_session(user)
             st.query_params.clear()
             st.query_params["session"] = encoded
-            if cookie_mgr:
-                try:
-                    expires = datetime.datetime.now() + datetime.timedelta(days=30)
-                    cookie_mgr.set("kube_rag_session", encoded, expires_at=expires)
-                except Exception:
-                    pass
+            # Write cookie via JS (non-blocking, no iframe delay)
+            _set_js_cookie(SESSION_COOKIE, encoded, days=30)
             st.rerun()
         else:
             st.query_params.clear()
@@ -232,14 +240,38 @@ def handle_oauth_flow():
     return None
 
 
+def inject_cookie_reader():
+    """
+    Inject a lightweight JS bridge that reads the session cookie and appends it
+    as a query param so Streamlit can pick it up on the NEXT rerun.
+    Call this ONCE on the login page after rendering the UI card.
+    This is async — it doesn't block the initial page paint.
+    """
+    js = f"""
+    <script>
+    (function() {{
+        function getCookie(name) {{
+            var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+            return match ? match[2] : null;
+        }}
+        var val = getCookie('{SESSION_COOKIE}');
+        if (val) {{
+            var url = new URL(window.location.href);
+            if (!url.searchParams.get('session')) {{
+                url.searchParams.set('session', val);
+                window.location.replace(url.toString());
+            }}
+        }}
+    }})();
+    </script>
+    """
+    components.html(js, height=0, width=0)
+
+
 def logout_user():
     """Log out current user and completely clear local session state, cookies, and query params."""
-    cookie_mgr = get_cookie_manager()
-    if cookie_mgr:
-        try:
-            cookie_mgr.delete("kube_rag_session")
-        except Exception:
-            pass
+    # Delete cookie via JS
+    _delete_js_cookie(SESSION_COOKIE)
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.query_params.clear()

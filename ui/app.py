@@ -15,19 +15,15 @@ if _current_dir not in sys.path:
 import requests
 import streamlit as st
 
-# Check authentication state upfront for immediate frame render
-is_authenticated = bool(
-    st.session_state.get("user")
-    or st.query_params.get("session")
-    or st.query_params.get("code")
-)
+# Check in-memory session state for immediate sidebar decision (INSTANT — no query param read)
+_already_logged_in = bool(st.session_state.get("user"))
 
 # --- FAST PAGE CONFIG (Must be first Streamlit call) ---
 st.set_page_config(
     page_title="Kubernetes Enterprise AI",
     page_icon="☸️",
     layout="wide",
-    initial_sidebar_state="expanded" if is_authenticated else "collapsed",
+    initial_sidebar_state="expanded" if _already_logged_in else "collapsed",
 )
 
 from dotenv import load_dotenv
@@ -54,12 +50,14 @@ try:
     from auth import (
         get_google_auth_url,
         handle_oauth_flow,
+        inject_cookie_reader,
         logout_user,
     )
 except (ImportError, KeyError):
     from ui.auth import (
         get_google_auth_url,
         handle_oauth_flow,
+        inject_cookie_reader,
         logout_user,
     )
 
@@ -126,7 +124,8 @@ except Exception:
 
 
 # Custom CSS for polished responsive alignment, mobile viewport support, and clean sidebar toggle
-hide_sidebar_css = "[data-testid=\"stSidebar\"], [data-testid=\"collapsedControl\"] { display: none !important; }" if not is_authenticated else ""
+_current_user_check = st.session_state.get("user") or ("session" in st.query_params) or ("code" in st.query_params)
+hide_sidebar_css = "[data-testid=\"stSidebar\"], [data-testid=\"collapsedControl\"] { display: none !important; }" if not _current_user_check else ""
 
 st.markdown(
     f"""
@@ -377,6 +376,11 @@ if not current_user:
             get_google_auth_url(),
             use_container_width=True,
         )
+
+    # Inject async JS cookie reader AFTER card renders — zero blocking.
+    # If a session cookie exists from a previous login, JS redirects with ?session=...
+    # so the next Streamlit rerun picks it up instantly.
+    inject_cookie_reader()
 
     st.stop()
 
