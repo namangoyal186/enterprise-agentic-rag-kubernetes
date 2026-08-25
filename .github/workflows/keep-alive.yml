@@ -2,33 +2,36 @@ name: Keep App Alive 24/7
 
 on:
   schedule:
-    # Runs every 4 hours to maintain hot active instances
-    - cron: '0 */4 * * *'
+    # Runs every 14 minutes to prevent Render 15-minute idle sleep and keep instances hot 24/7
+    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Ping Production Endpoints
         run: |
-          python -c "
-          import requests
-          headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
+          python3 -c "
+          import urllib.request
+          import ssl
+
+          ctx = ssl.create_default_context()
+          headers = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+          }
           urls = [
               'https://enterprise-agentic-rag-kubernetes.onrender.com',
+              'https://enterprise-agentic-rag-kubernetes.onrender.com/health',
               'https://enterprise-agentic-rag-kubernetes.onrender.com/_stcore/health',
               'https://enterprise-agentic-rag-kubernetes.streamlit.app'
           ]
           for u in urls:
               try:
-                  res = requests.get(u, headers=headers, timeout=25)
-                  print(f'Ping {u} -> Status {res.status_code}')
+                  req = urllib.request.Request(u, headers=headers)
+                  with urllib.request.urlopen(req, timeout=25, context=ctx) as res:
+                      print(f'[SUCCESS] Ping {u} -> Status {res.status}')
               except Exception as e:
-                  print(f'Notice for {u}: {e}')
+                  print(f'[NOTICE] Ping {u}: {e}')
           "
+
