@@ -396,18 +396,8 @@
     messagesContainer.appendChild(row);
   }
 
-
-    // Hook collapsible sources
-    const srcHeader = row.querySelector('.sources-header');
-    if (srcHeader) {
-      const srcList = row.querySelector('.sources-list');
-      srcHeader.addEventListener('click', () => srcList.classList.toggle('hidden'));
-    }
-
-    messagesContainer.appendChild(row);
-  }
-
   async function streamText(element, fullText) {
+
     let current = '';
     const speed = fullText.length > 600 ? 1 : 4;
     for (let i = 0; i < fullText.length; i++) {
