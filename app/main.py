@@ -258,8 +258,14 @@ def serve_ui(request: Request, code: Optional[str] = None, error: Optional[str] 
 
     index_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "index.html")
     if os.path.exists(index_file):
-        return FileResponse(index_file, media_type="text/html")
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        return FileResponse(index_file, media_type="text/html", headers=headers)
     return {"message": "Enterprise LangGraph RAG API is live."}
+
 
 
 
