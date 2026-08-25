@@ -41,28 +41,33 @@
   box-sizing: border-box;
 }
 
-/* Global Custom Dark Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* =============================================================================
+   COMPLETELY HIDE ALL SCROLLBARS (ZERO VISUAL SCROLLBARS ACROSS ALL BROWSERS)
+   ============================================================================= */
+*::-webkit-scrollbar,
+::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+div::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+  opacity: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+* {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;     /* Firefox */
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.28);
-}
-
-html, body {
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
-  scrollbar-width: thin;
+html,
+body,
+.chat-main,
+.messages-container,
+.threads-list {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 body {
@@ -74,6 +79,7 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
 }
+
 
 
 /* =============================================================================
