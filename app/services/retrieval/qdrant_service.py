@@ -48,8 +48,9 @@ def _search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None
             "filename": payload.get("filename", payload.get("source", "Unknown")),
             "is_master_kb": payload.get("is_master_kb", True),
             "user_id": payload.get("user_id"),
-            "score": res.score,
+            "score": float(res.score) if res.score is not None else 0.0,
         })
+
 
     return results
 

@@ -209,8 +209,9 @@ def add_thread_message(
     if not settings.postgres_uri:
         return {"thread_id": thread_id, "role": role, "content": content}
 
-    sources_json = json.dumps(sources or [])
-    thought_json = json.dumps(thought_process or [])
+    sources_json = json.dumps(sources or [], default=str)
+    thought_json = json.dumps(thought_process or [], default=str)
+
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
