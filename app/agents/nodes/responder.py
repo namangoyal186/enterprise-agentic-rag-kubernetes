@@ -62,12 +62,17 @@ def generate_node(state: AgentState):
         full_context = ""
 
         for doc in state.get("documents", []):
-            doc_text = doc["content"] if isinstance(doc, dict) else str(doc)
+            if isinstance(doc, dict):
+                val = doc.get("content", "")
+                doc_text = val.get("text", "") if isinstance(val, dict) else str(val)
+            else:
+                doc_text = str(doc)
             if len(full_context) + len(doc_text) < max_context_chars:
                 full_context += doc_text + "\n\n"
             else:
                 logfire.warning("Context truncated to fit Groq TPM limits.")
                 break
+
 
 
         prompt = f"""

@@ -1,3 +1,4 @@
+import re
 import logfire
 
 from app.agents.state import AgentState
@@ -5,6 +6,12 @@ from app.gateway import get_langchain_llm
 
 # Portkey-backed LLM: fallback + cache + retry — same .invoke() interface as ChatOpenAI
 llm = get_langchain_llm(feature="planner")
+
+
+def _clean_think_tags(text: str) -> str:
+    """Removes internal <think> reasoning tokens from reasoning models."""
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    return cleaned if cleaned else text
 
 
 def planner_node(state: AgentState):
@@ -36,11 +43,11 @@ def planner_node(state: AgentState):
     Output ONLY 'CONVERSATIONAL' or the refined search query.
     """
 
-
-
     with logfire.span("🧠 Planner Decision"):
-        decision = llm.invoke(prompt).content.strip()
+        raw_decision = llm.invoke(prompt).content or ""
+        decision = _clean_think_tags(raw_decision).strip()
         logfire.info(f"Intent identified: {decision}")
+
 
     if decision == "CONVERSATIONAL":
         return {

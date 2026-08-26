@@ -39,16 +39,22 @@ class _JinaReranker:
         # Results are already sorted by relevance_score descending
         reranked_docs = []
         for res in results[:top_n]:
-            doc_text = res.get("document")
-            if doc_text is None:
-                # Fallback to original index if document text is missing
+            doc_obj = res.get("document")
+            if isinstance(doc_obj, dict):
+                doc_text = doc_obj.get("text", "")
+            elif isinstance(doc_obj, str):
+                doc_text = doc_obj
+            else:
                 index = res.get("index")
                 if index is not None and 0 <= index < len(documents):
                     doc_text = documents[index]
-            if doc_text is not None:
+                else:
+                    doc_text = str(doc_obj) if doc_obj is not None else ""
+            if doc_text:
                 reranked_docs.append(doc_text)
 
         return reranked_docs
+
 
 
 def _get_ranker() -> _JinaReranker:
