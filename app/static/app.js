@@ -561,27 +561,39 @@
       if (!res.ok) return;
       const data = await res.json();
 
-      // 1. Update Logfire link
-      if (data.logfire_url && logfireExternalLink) {
-        logfireExternalLink.href = data.logfire_url;
-      }
-
-      // 2. Update Health Badges
-
+      // Update Clean Service Health Badges
       if (healthBadgesContainer && data.services_health) {
         const s = data.services_health;
-        healthBadgesContainer.innerHTML = `
-          <div class="health-badge"><span class="badge-dot ${s.postgres === 'connected' ? 'green' : 'yellow'}"></span> Neon PostgreSQL (Durable Memory: ${escapeHtml(s.postgres || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.qdrant === 'connected' ? 'green' : 'yellow'}"></span> Qdrant Hybrid Vector Store (${escapeHtml(s.qdrant || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.redis === 'connected' ? 'green' : 'yellow'}"></span> Upstash Redis Limiter (${escapeHtml(s.redis || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.jina_embeddings === 'connected' ? 'green' : 'yellow'}"></span> Jina AI Embeddings & Reranker (${escapeHtml(s.jina_embeddings || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.llm_gateway === 'connected' ? 'green' : 'yellow'}"></span> LLM Gateway OpenRouter / Groq (${escapeHtml(s.llm_gateway || 'connected')})</div>
-        `;
+        const isOk = (val) => Boolean(val && (val === 'connected' || String(val).startsWith('ok')));
+
+        const services = [
+          { name: 'Neon PostgreSQL', role: 'Durable Memory & LangGraph State', ok: isOk(s.postgres) },
+          { name: 'Qdrant Vector Cloud', role: 'Hybrid Dense + Sparse Storage', ok: isOk(s.qdrant) },
+          { name: 'Upstash Redis', role: 'Sliding-Window Rate Limiter', ok: isOk(s.redis) },
+          { name: 'Jina AI API', role: 'Embeddings v3 & Reranker v2', ok: isOk(s.jina_embeddings) },
+          { name: 'LLM Gateway', role: 'Qwen 2.5 27B / Google Gemini 2.5', ok: isOk(s.llm_gateway) },
+        ];
+
+        healthBadgesContainer.innerHTML = services.map((svc) => `
+          <div class="health-badge-card">
+            <div class="health-badge-left">
+              <span class="badge-dot ${svc.ok ? 'green' : 'red'}"></span>
+              <div>
+                <div class="health-service-name">${escapeHtml(svc.name)}</div>
+                <div class="health-service-role">${escapeHtml(svc.role)}</div>
+              </div>
+            </div>
+            <div class="health-status-pill ${svc.ok ? 'online' : 'offline'}">
+              ${svc.ok ? 'Operational' : 'Degraded'}
+            </div>
+          </div>
+        `).join('');
       }
     } catch (err) {
       console.warn('Could not fetch architecture metadata:', err);
     }
   }
+
 
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));

@@ -20,7 +20,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css">
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 
-  <link rel="stylesheet" href="/static/style.css?v=2.0.9">
+  <link rel="stylesheet" href="/static/style.css?v=2.1.1">
+
 
 </head>
 
@@ -235,32 +236,25 @@
         </div>
       </div>
 
-      <!-- Tab Content 2: Live Cluster Health & Architecture Specs -->
+      <!-- Tab Content 2: Live Cluster Health -->
       <div id="tab-telemetry" class="tab-content">
-        <div class="telemetry-grid">
-          <div class="telemetry-card">
-            <div class="telemetry-label">Multi-Agent State & Engine</div>
-            <div class="telemetry-value">LangGraph + Observability</div>
-            <p class="telemetry-desc">Zero-overhead spans instrumented on all LLM nodes, Guardrail gates, and Vector DB calls with per-message execution trace breakdown.</p>
-            <div class="health-badges">
-              <div class="health-badge"><span class="badge-dot green"></span> Orchestration: LangGraph StateGraph</div>
-              <div class="health-badge"><span class="badge-dot green"></span> Safety: NeMo Guardrails L1 Filter</div>
-              <div class="health-badge"><span class="badge-dot green"></span> Tracing: Isolated Per-User Message Trace</div>
+        <div class="health-overview-card">
+          <div class="health-overview-header">
+            <div>
+              <div class="telemetry-label">Cloud Infrastructure & Dependencies</div>
+              <div class="telemetry-value">Live Service Health Status</div>
+            </div>
+            <div class="health-all-systems">
+              <span class="badge-dot green"></span> All Systems Operational
             </div>
           </div>
-
-          <div class="telemetry-card">
-            <div class="telemetry-label">Infrastructure Health Status</div>
-            <div class="health-badges" id="health-badges-container">
-              <div class="health-badge"><span class="badge-dot green"></span> Neon PostgreSQL (Durable Memory)</div>
-              <div class="health-badge"><span class="badge-dot green"></span> Qdrant Hybrid Vector Store</div>
-              <div class="health-badge"><span class="badge-dot green"></span> Upstash Redis Rate Limiter</div>
-              <div class="health-badge"><span class="badge-dot green"></span> Jina AI Embeddings & Reranker</div>
-              <div class="health-badge"><span class="badge-dot green"></span> LLM Gateway (OpenRouter / Groq)</div>
-            </div>
+          <p class="telemetry-desc">Real-time connectivity checks for all cloud databases, vector indices, embeddings, and LLM gateways.</p>
+          <div class="health-badges-grid" id="health-badges-container">
+            <!-- Dynamically populated with clean status badges by app.js -->
           </div>
         </div>
       </div>
+
 
 
       <!-- Tab Content 3: NeMo Guardrails -->
@@ -293,9 +287,10 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=2.1.0"></script>
+  <script src="/static/app.js?v=2.1.1"></script>
 </body>
 </html>
+
 
 
 

@@ -1294,81 +1294,91 @@ body {
   line-height: 1.4;
 }
 
-/* Tab 2: Telemetry */
-.telemetry-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.telemetry-card {
+/* Tab 2: Infrastructure Health Overview */
+.health-overview-card {
   background: rgba(22, 27, 34, 0.4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 18px;
+  padding: 22px;
+}
+
+.health-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.health-all-systems {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.health-badges-grid {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
 }
 
-.telemetry-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.telemetry-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.telemetry-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.4;
-  margin-bottom: 16px;
-  flex: 1;
-}
-
-.btn-logfire-external {
-  display: inline-flex;
+.health-badge-card {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--brand-blue);
-  color: #ffffff;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
 }
 
-.btn-logfire-external:hover {
-  background: #2557b8;
-  box-shadow: 0 4px 14px rgba(43, 92, 230, 0.4);
-  transform: translateY(-1px);
+.health-badge-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
-.health-badges {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.health-badge {
+.health-badge-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  gap: 12px;
+}
+
+.health-service-name {
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text-primary);
+}
+
+.health-service-role {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.health-status-pill {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+.health-status-pill.online {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.health-status-pill.offline {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .badge-dot {
@@ -1381,6 +1391,12 @@ body {
   background: #10b981;
   box-shadow: 0 0 8px #10b981;
 }
+
+.badge-dot.red {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
 
 /* Tab 3: Guardrails */
 .guardrails-list {
