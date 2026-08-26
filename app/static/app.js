@@ -161,7 +161,20 @@
         if (target) target.classList.add('active');
       });
     });
+
+    // Trace Accordion Toggle in messages
+    messagesContainer.addEventListener('click', (e) => {
+      const traceHeader = e.target.closest('.trace-header');
+      if (traceHeader) {
+        const card = traceHeader.closest('.trace-card');
+        if (card) {
+          card.classList.toggle('open');
+        }
+      }
+    });
   }
+
+
 
   // --- Authentication ---
 
@@ -406,6 +419,16 @@
       messageContent.innerHTML = '';
       await streamText(messageContent, cleanAnswer);
 
+      // Render Per-Message Execution Trace Accordion
+      if (data.trace) {
+        const traceWrapper = document.createElement('div');
+        traceWrapper.innerHTML = renderTraceHtml(data.trace, data.sources);
+        if (traceWrapper.firstElementChild) {
+          assistantRow.querySelector('.message-body').appendChild(traceWrapper.firstElementChild);
+          scrollToBottom();
+        }
+      }
+
       // Update Thread Title in Sidebar if it's the first query
       const existing = threads.find((t) => t.thread_id === currentThreadId);
       const cleanT = query.length > 35 ? query.substring(0, 32) + '...' : query;
@@ -425,25 +448,71 @@
     }
   }
 
-  function appendMessage(role, content) {
+  function appendMessage(role, content, thoughtProcess = null, sources = null) {
     const row = document.createElement('div');
     row.className = `message-row ${role}`;
 
     const cleanContent = stripThinkTags(content);
     const parsedHtml = window.marked ? marked.parse(cleanContent) : escapeHtml(cleanContent);
 
+    let trace = null;
+    if (thoughtProcess && typeof thoughtProcess === 'object' && thoughtProcess.trace) {
+      trace = thoughtProcess.trace;
+    }
+
+    const traceHtml = role === 'assistant' && trace ? renderTraceHtml(trace, sources) : '';
+
     row.innerHTML = `
       <div class="message-avatar">${role === 'user' ? '👤' : '🤖'}</div>
       <div class="message-body">
         <div class="message-author">${role === 'user' ? (currentUser ? currentUser.name : 'You') : 'Kubernetes AI'}</div>
         <div class="message-content">${parsedHtml}</div>
+        ${traceHtml}
       </div>
     `;
 
     messagesContainer.appendChild(row);
   }
 
+  function renderTraceHtml(trace, sources) {
+    if (!trace || !trace.steps || !trace.steps.length) return '';
+
+    const stepsHtml = trace.steps.map((s) => {
+      const isBlocked = s.status === 'BLOCKED';
+      const badgeClass = isBlocked ? 'trace-badge-status blocked' : 'trace-badge-status';
+      return `
+        <div class="trace-step">
+          <div class="trace-step-left">
+            <span class="trace-step-icon">${s.icon || '⚡'}</span>
+            <span class="trace-step-name">${escapeHtml(s.node)}</span>
+            <span class="trace-step-detail">— ${escapeHtml(s.detail)}</span>
+          </div>
+          <div class="trace-step-right">
+            <span class="${badgeClass}">${escapeHtml(s.status)}</span>
+            <span class="trace-latency">${s.duration_ms || 0}ms</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="trace-card">
+        <div class="trace-header">
+          <div class="trace-header-left">
+            <span>⚡</span>
+            <span>Execution Trace (${trace.total_latency_s || '0.0'}s • ${trace.steps.length} steps)</span>
+          </div>
+          <svg class="trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="trace-list">
+          ${stepsHtml}
+        </div>
+      </div>
+    `;
+  }
+
   async function streamText(element, fullText) {
+
 
     let current = '';
     const speed = fullText.length > 600 ? 1 : 4;

@@ -184,7 +184,7 @@
       <!-- Tab Switcher -->
       <div class="modal-tabs">
         <button class="modal-tab active" data-tab="tab-dag">☸️ Multi-Agent Graph</button>
-        <button class="modal-tab" data-tab="tab-telemetry">🛰️ Live Telemetry & Traces</button>
+        <button class="modal-tab" data-tab="tab-telemetry">🛰️ Infrastructure & Health</button>
         <button class="modal-tab" data-tab="tab-guardrails">🛡️ NeMo Security Rails</button>
       </div>
 
@@ -235,18 +235,18 @@
         </div>
       </div>
 
-      <!-- Tab Content 2: Live Telemetry & Logfire -->
-
+      <!-- Tab Content 2: Live Cluster Health & Architecture Specs -->
       <div id="tab-telemetry" class="tab-content">
         <div class="telemetry-grid">
           <div class="telemetry-card">
-            <div class="telemetry-label">Distributed Tracing Engine</div>
-            <div class="telemetry-value">Pydantic Logfire</div>
-            <p class="telemetry-desc">Zero-overhead OpenTelemetry spans instrumented on all LLM, Guardrail, and Vector DB calls.</p>
-            <a id="logfire-external-link" href="https://logfire.pydantic.dev" target="_blank" rel="noopener" class="btn-logfire-external">
-              <span>Open Live Logfire Trace Dashboard</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-            </a>
+            <div class="telemetry-label">Multi-Agent State & Engine</div>
+            <div class="telemetry-value">LangGraph + Observability</div>
+            <p class="telemetry-desc">Zero-overhead spans instrumented on all LLM nodes, Guardrail gates, and Vector DB calls with per-message execution trace breakdown.</p>
+            <div class="health-badges">
+              <div class="health-badge"><span class="badge-dot green"></span> Orchestration: LangGraph StateGraph</div>
+              <div class="health-badge"><span class="badge-dot green"></span> Safety: NeMo Guardrails L1 Filter</div>
+              <div class="health-badge"><span class="badge-dot green"></span> Tracing: Isolated Per-User Message Trace</div>
+            </div>
           </div>
 
           <div class="telemetry-card">
@@ -261,6 +261,7 @@
           </div>
         </div>
       </div>
+
 
       <!-- Tab Content 3: NeMo Guardrails -->
       <div id="tab-guardrails" class="tab-content">
@@ -292,9 +293,10 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=2.0.8"></script>
+  <script src="/static/app.js?v=2.1.0"></script>
 </body>
 </html>
+
 
 
 
