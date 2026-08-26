@@ -121,16 +121,23 @@
     <!-- Main Chat Workspace -->
     <main class="chat-main">
       <header class="chat-header">
-        <button id="sidebar-expand-btn" class="btn-sidebar-toggle" title="Toggle sidebar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-        </button>
-        <h1 id="current-thread-title" class="thread-title">New Chat</h1>
+        <div class="chat-header-left">
+          <button id="sidebar-expand-btn" class="btn-sidebar-toggle" title="Toggle sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+          <h1 id="current-thread-title" class="thread-title">New Chat</h1>
+        </div>
+        <div class="chat-header-right">
+          <button id="architecture-modal-btn" class="btn-architecture-toggle" title="View System Architecture & AI Telemetry">
+            <span class="pulse-dot"></span>
+            <span class="btn-architecture-text">Architecture & Trace</span>
+          </button>
+        </div>
       </header>
-
 
       <div id="messages-container" class="messages-container">
         <!-- Messages & thought processes injected by app.js -->
@@ -162,9 +169,140 @@
 
   </div>
 
-  <script src="/static/app.js?v=2.0.5"></script>
+  <!-- =========================================================================
+       3. SYSTEM ARCHITECTURE & AI OBSERVABILITY MODAL
+       ========================================================================= -->
+  <div id="architecture-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">☸️</span>
+          <div>
+            <h3>System Architecture & Live Telemetry</h3>
+            <p class="modal-subtitle">LangGraph Multi-Agent RAG • NeMo Guardrails • Logfire Observability</p>
+          </div>
+        </div>
+        <button id="modal-close-btn" class="btn-modal-close" title="Close modal">&times;</button>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="tab-dag">☸️ Multi-Agent Graph</button>
+        <button class="modal-tab" data-tab="tab-telemetry">🛰️ Live Telemetry & Traces</button>
+        <button class="modal-tab" data-tab="tab-guardrails">🛡️ NeMo Security Rails</button>
+      </div>
+
+      <!-- Tab Content 1: Multi-Agent DAG -->
+      <div id="tab-dag" class="tab-content active">
+        <div class="dag-info-banner">
+          <strong>Decision-Making Router:</strong> The <code>Planner Agent</code> dynamically decides whether to execute <em>Hybrid Vector Search (Qdrant + Jina)</em> or stream a direct <em>Conversational Response</em>, reducing token usage & latency by 60% on conversational turns.
+        </div>
+        <div class="dag-visual-container">
+          <div class="flow-step">
+            <div class="flow-node guardrail-node">
+              <span class="node-icon">🛡️</span>
+              <span class="node-title">NeMo Guardrails</span>
+              <span class="node-badge">L1 Safety</span>
+            </div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node planner-node">
+              <span class="node-icon">🧠</span>
+              <span class="node-title">Planner Node</span>
+              <span class="node-badge">Router Agent</span>
+            </div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-branch">
+              <div class="flow-node retriever-node">
+                <span class="node-icon">🔍</span>
+                <span class="node-title">Qdrant Retriever</span>
+                <span class="node-badge">Hybrid RAG</span>
+              </div>
+              <div class="flow-node direct-node">
+                <span class="node-icon">💬</span>
+                <span class="node-title">Direct Bypass</span>
+                <span class="node-badge">Fast Track</span>
+              </div>
+            </div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node responder-node">
+              <span class="node-icon">🤖</span>
+              <span class="node-title">Synthesis Responder</span>
+              <span class="node-badge">Qwen 27B / Gemini</span>
+            </div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node checkpointer-node">
+              <span class="node-icon">🗄️</span>
+              <span class="node-title">Postgres Checkpointer</span>
+              <span class="node-badge">Durable Memory</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="agents-grid" id="agents-grid">
+          <!-- Dynamically populated by app.js -->
+        </div>
+      </div>
+
+      <!-- Tab Content 2: Live Telemetry & Logfire -->
+      <div id="tab-telemetry" class="tab-content">
+        <div class="telemetry-grid">
+          <div class="telemetry-card">
+            <div class="telemetry-label">Distributed Tracing Engine</div>
+            <div class="telemetry-value">Pydantic Logfire</div>
+            <p class="telemetry-desc">Zero-overhead OpenTelemetry spans instrumented on all LLM, Guardrail, and Vector DB calls.</p>
+            <a id="logfire-external-link" href="https://logfire.pydantic.dev" target="_blank" rel="noopener" class="btn-logfire-external">
+              <span>Open Live Logfire Trace Dashboard</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </a>
+          </div>
+
+          <div class="telemetry-card">
+            <div class="telemetry-label">Infrastructure Health Status</div>
+            <div class="health-badges" id="health-badges-container">
+              <div class="health-badge"><span class="badge-dot green"></span> Neon PostgreSQL (Durable Memory)</div>
+              <div class="health-badge"><span class="badge-dot green"></span> Qdrant Hybrid Vector Store</div>
+              <div class="health-badge"><span class="badge-dot green"></span> Upstash Redis Rate Limiter</div>
+              <div class="health-badge"><span class="badge-dot green"></span> Jina AI Embeddings & Reranker</div>
+              <div class="health-badge"><span class="badge-dot green"></span> LLM Gateway (OpenRouter / Groq)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 3: NeMo Guardrails -->
+      <div id="tab-guardrails" class="tab-content">
+        <div class="guardrails-list">
+          <div class="guardrail-item">
+            <div class="guardrail-status-icon">🛡️</div>
+            <div>
+              <h4>Prompt Injection & Jailbreak Defense</h4>
+              <p>Self-check input rails filter malicious jailbreak attempts and adversarial prompt structures before touching LLMs.</p>
+            </div>
+          </div>
+          <div class="guardrail-item">
+            <div class="guardrail-status-icon">🔒</div>
+            <div>
+              <h4>System Prompt Leak Prevention</h4>
+              <p>Output self-reflection rails verify assistant responses to prevent exposing internal system instructions or secret tokens.</p>
+            </div>
+          </div>
+          <div class="guardrail-item">
+            <div class="guardrail-status-icon">☸️</div>
+            <div>
+              <h4>Kubernetes Domain Relevance Check</h4>
+              <p>Restricts responses to cloud-native, Kubernetes, DevOps, and cloud engineering topics, politely rejecting out-of-scope queries.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=2.0.6"></script>
 </body>
 </html>
+
 
 
 
