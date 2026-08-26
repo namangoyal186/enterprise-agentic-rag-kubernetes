@@ -26,7 +26,9 @@ import uuid
 from typing import Optional
 
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+import tempfile
+
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -34,6 +36,10 @@ from fastapi.staticfiles import StaticFiles
 from prometheus_client import Counter, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
+
+from app.services.document_parser import process_uploaded_document
+from app.services.retrieval.qdrant_service import upsert_document_chunks
+
 
 from app.agents.graph import build_graph
 from app.db.database import (
@@ -344,9 +350,131 @@ def auth_logout(response: Response):
     return {"status": "logged_out"}
 
 
+# --- Document Ingestion Endpoints ---
+ALLOWED_EXTENSIONS = {".pdf", ".yaml", ".yml", ".json", ".txt", ".md", ".csv"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
+@app.post("/api/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    user_id: str = Form("anonymous"),
+    thread_id: Optional[str] = Form(None),
+):
+    """
+    Upload and index a document into Qdrant for private session RAG.
+    """
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File exceeds the 10MB limit.")
+    if len(contents) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    doc_id = str(uuid.uuid4())
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(contents)
+            temp_path = tmp.name
+
+        chunks = process_uploaded_document(temp_path, file.filename)
+        indexed_count = upsert_document_chunks(
+            chunks=chunks,
+            filename=file.filename,
+            is_master_kb=False,
+            user_id=user_id,
+            thread_id=thread_id,
+            doc_id=doc_id,
+        )
+
+        return {
+            "status": "success",
+            "doc_id": doc_id,
+            "filename": file.filename,
+            "chunks_indexed": indexed_count,
+            "message": f"Successfully indexed {indexed_count} chunks from '{file.filename}'.",
+        }
+    except Exception as e:
+        logfire.error(f"Upload and indexing failed for {file.filename}: {e}")
+        raise HTTPException(status_code=500, detail=f"Document parsing failed: {str(e)}")
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+
+@app.post("/api/admin/master-ingest")
+async def admin_master_ingest(
+    request: Request,
+    file: UploadFile = File(...),
+    admin_token: Optional[str] = Form(None),
+):
+    """
+    Admin-only endpoint to ingest new documentation into the Master Knowledge Base (is_master_kb = True).
+    """
+    # Verify Admin
+    token = admin_token or request.cookies.get(SESSION_COOKIE_NAME)
+    user_data = verify_session_token(token) if token else None
+    if not user_data or user_data.get("email") != "namangoyal983@gmail.com":
+        raise HTTPException(status_code=403, detail="Unauthorized: Admin access required.")
+
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format '{ext}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File exceeds 10MB limit.")
+
+    doc_id = str(uuid.uuid4())
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+            tmp.write(contents)
+            temp_path = tmp.name
+
+        chunks = process_uploaded_document(temp_path, file.filename)
+        indexed_count = upsert_document_chunks(
+            chunks=chunks,
+            filename=file.filename,
+            is_master_kb=True,
+            user_id=None,
+            thread_id=None,
+            doc_id=doc_id,
+        )
+
+        return {
+            "status": "success",
+            "doc_id": doc_id,
+            "filename": file.filename,
+            "chunks_indexed": indexed_count,
+            "message": f"Successfully ingested {indexed_count} chunks from '{file.filename}' into Global Master Knowledge Base.",
+        }
+    except Exception as e:
+        logfire.error(f"Admin Master Ingest failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 @app.get("/graph")
+
 def get_graph_image():
     """
     Returns the Mermaid image of the agent's workflow.
@@ -511,7 +639,10 @@ def query(
                 "documents": [],
                 "plan": ["Start"],
                 "status": "Initializing Graph...",
+                "user_id": user_id,
+                "thread_id": thread_id,
             }
+
             config = {"configurable": {"thread_id": thread_id}}
             agent_start = time.perf_counter()
             final_output = rag_agent.invoke(initial_state, config=config)

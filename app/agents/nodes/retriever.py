@@ -10,12 +10,14 @@ def retrieve_node(state: AgentState):
     Performs vector search and semantic reranking for technical queries.
     """
     query = state["current_query"]
+    user_id = state.get("user_id")
 
     # Standard Retrieval Logic
     with logfire.span("🔍 Knowledge Retrieval"):
-        logfire.info(f"Searching Qdrant for: {query}")
-        raw_results = search_enterprise_knowledge(query, limit=15)
+        logfire.info(f"Searching Qdrant for: {query} (user_id={user_id})")
+        raw_results = search_enterprise_knowledge(query, limit=15, user_id=user_id)
         logfire.info(f"Retrieved {len(raw_results)} candidates from Vector DB")
+
 
         doc_contents = [doc["content"] for doc in raw_results]
 

@@ -39,6 +39,26 @@
   const healthBadgesContainer = document.getElementById('health-badges-container');
   const logfireExternalLink = document.getElementById('logfire-external-link');
 
+  // Attachment Elements
+  const fileAttachmentInput = document.getElementById('file-attachment-input');
+  const btnAttach = document.getElementById('btn-attach');
+  const attachmentPreviewBar = document.getElementById('attachment-preview-bar');
+  const attachedFilename = document.getElementById('attached-filename');
+  const attachedFilesize = document.getElementById('attached-filesize');
+  const btnRemoveAttachment = document.getElementById('btn-remove-attachment');
+  const uploadStatusIndicator = document.getElementById('upload-status-indicator');
+  const uploadStatusText = document.getElementById('upload-status-text');
+
+  // Admin Master Ingestion Elements
+  const adminMasterIngestSection = document.getElementById('admin-master-ingest-section');
+  const adminDropzone = document.getElementById('admin-dropzone');
+  const adminMasterFileInput = document.getElementById('admin-master-file-input');
+  const adminUploadStatus = document.getElementById('admin-upload-status');
+
+  let activeUploadedDoc = null;
+  let isUploadingAttachment = false;
+
+
 
   // --- Initialization ---
 
@@ -162,17 +182,76 @@
       });
     });
 
-    // Trace Accordion Toggle in messages
+    // Attachment Controls
+    if (btnAttach && fileAttachmentInput) {
+      btnAttach.addEventListener('click', () => {
+        fileAttachmentInput.click();
+      });
+
+      fileAttachmentInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          handleFileAttachment(file);
+        }
+      });
+    }
+
+    if (btnRemoveAttachment) {
+      btnRemoveAttachment.addEventListener('click', () => {
+        clearAttachment();
+      });
+    }
+
+    // Admin Master Knowledge Ingest Dropzone
+    if (adminDropzone && adminMasterFileInput) {
+      adminDropzone.addEventListener('click', () => {
+        adminMasterFileInput.click();
+      });
+
+      adminMasterFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          handleAdminMasterIngest(file);
+        }
+      });
+
+      adminDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        adminDropzone.style.borderColor = '#facc15';
+      });
+
+      adminDropzone.addEventListener('dragleave', () => {
+        adminDropzone.style.borderColor = '';
+      });
+
+      adminDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        adminDropzone.style.borderColor = '';
+        const file = e.dataTransfer.files[0];
+        if (file) {
+          handleAdminMasterIngest(file);
+        }
+      });
+    }
+
+    // Sources & Trace Accordion Toggles in messages
     messagesContainer.addEventListener('click', (e) => {
       const traceHeader = e.target.closest('.trace-header');
       if (traceHeader) {
         const card = traceHeader.closest('.trace-card');
-        if (card) {
-          card.classList.toggle('open');
-        }
+        if (card) card.classList.toggle('open');
+        return;
+      }
+
+      const sourcesHeader = e.target.closest('.sources-header');
+      if (sourcesHeader) {
+        const card = sourcesHeader.closest('.sources-card');
+        if (card) card.classList.toggle('open');
+        return;
       }
     });
   }
+
 
 
 
@@ -232,8 +311,18 @@
       userAvatar.textContent = (currentUser.name || 'U')[0].toUpperCase();
     }
 
+    // Show Admin Master Ingest section if user is admin
+    if (adminMasterIngestSection) {
+      if (currentUser && currentUser.email === 'namangoyal983@gmail.com') {
+        adminMasterIngestSection.classList.remove('hidden');
+      } else {
+        adminMasterIngestSection.classList.add('hidden');
+      }
+    }
+
     loadUserThreads();
   }
+
 
   async function logout() {
     localStorage.removeItem('kube_session');
@@ -303,12 +392,14 @@
   function startNewChat() {
     currentThreadId = generateUUID();
     currentThreadTitle.textContent = 'New Chat';
+    clearAttachment();
     messagesContainer.innerHTML = '';
     messagesContainer.appendChild(emptyState);
     emptyState.classList.remove('hidden');
     renderThreadsList();
     promptInput.focus();
   }
+
 
   async function selectThread(threadId, title) {
     currentThreadId = threadId;
@@ -419,6 +510,15 @@
       messageContent.innerHTML = '';
       await streamText(messageContent, cleanAnswer);
 
+      // Render Retrieved Sources Accordion
+      if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
+        const sourcesWrapper = document.createElement('div');
+        sourcesWrapper.innerHTML = renderSourcesAccordion(data.sources);
+        if (sourcesWrapper.firstElementChild) {
+          assistantRow.querySelector('.message-body').appendChild(sourcesWrapper.firstElementChild);
+        }
+      }
+
       // Render Per-Message Execution Trace Accordion
       if (data.trace) {
         const traceWrapper = document.createElement('div');
@@ -460,6 +560,7 @@
       trace = thoughtProcess.trace;
     }
 
+    const sourcesHtml = role === 'assistant' && sources && sources.length ? renderSourcesAccordion(sources) : '';
     const traceHtml = role === 'assistant' && trace ? renderTraceHtml(trace, sources) : '';
 
     row.innerHTML = `
@@ -467,12 +568,165 @@
       <div class="message-body">
         <div class="message-author">${role === 'user' ? (currentUser ? currentUser.name : 'You') : 'Kubernetes AI'}</div>
         <div class="message-content">${parsedHtml}</div>
+        ${sourcesHtml}
         ${traceHtml}
       </div>
     `;
 
     messagesContainer.appendChild(row);
   }
+
+  function renderSourcesAccordion(sources) {
+    if (!sources || !Array.isArray(sources) || sources.length === 0) return '';
+
+    const itemsHtml = sources.map((src) => {
+      const isObj = typeof src === 'object' && src !== null;
+      const filename = isObj ? (src.filename || src.source || 'Knowledge Base') : 'Kubernetes Docs';
+      const isMaster = isObj ? (src.is_master_kb !== false) : true;
+
+      const badge = isMaster
+        ? '<span class="source-badge master">📚 Master Knowledge</span>'
+        : `<span class="source-badge upload">📄 Your Upload: ${escapeHtml(filename)}</span>`;
+
+      const rawText = isObj ? (src.content || src.text || '') : String(src);
+      const cleanSnippet = rawText.replace(/^CONTENT:\s*/i, '').trim();
+      const preview = cleanSnippet.length > 220 ? cleanSnippet.substring(0, 220) + '...' : cleanSnippet;
+
+      return `
+        <div class="source-item">
+          <div class="source-item-header">
+            ${badge}
+            ${isObj && src.score ? `<span class="source-score">Relevance: ${(src.score * 100).toFixed(0)}%</span>` : ''}
+          </div>
+          <div class="source-text">${escapeHtml(preview)}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="sources-card">
+        <div class="sources-header">
+          <span>📑 Retrieved Sources (${sources.length} chunks)</span>
+          <svg class="sources-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+        <div class="sources-list">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // --- Document Ingestion & Attachment Handlers ---
+  async function handleFileAttachment(file) {
+    if (!file) return;
+
+    const allowed = ['.pdf', '.yaml', '.yml', '.json', '.txt', '.md', '.csv'];
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+      alert(`Unsupported file format '${ext}'. Allowed formats: PDF, YAML, JSON, TXT, MD, CSV.`);
+      fileAttachmentInput.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File exceeds the 10MB limit.');
+      fileAttachmentInput.value = '';
+      return;
+    }
+
+    // Show preview chip
+    attachedFilename.textContent = file.name;
+    attachedFilesize.textContent = `(${formatBytes(file.size)})`;
+    attachmentPreviewBar.classList.remove('hidden');
+    uploadStatusIndicator.classList.remove('hidden');
+    uploadStatusText.textContent = 'Parsing & Indexing into Qdrant...';
+    isUploadingAttachment = true;
+    sendBtn.disabled = true;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('user_id', currentUser ? currentUser.user_id : 'anonymous');
+      if (currentThreadId) {
+        formData.append('thread_id', currentThreadId);
+      }
+
+      const res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+      }
+
+      activeUploadedDoc = {
+        doc_id: data.doc_id,
+        filename: data.filename,
+        chunks_indexed: data.chunks_indexed,
+      };
+
+      uploadStatusText.textContent = `✅ Ready (${data.chunks_indexed} chunks indexed)`;
+    } catch (err) {
+      console.error('Attachment upload failed:', err);
+      uploadStatusText.textContent = `❌ ${err.message}`;
+    } finally {
+      isUploadingAttachment = false;
+      sendBtn.disabled = !promptInput.value.trim() || isGenerating;
+    }
+  }
+
+  function clearAttachment() {
+    activeUploadedDoc = null;
+    fileAttachmentInput.value = '';
+    attachmentPreviewBar.classList.add('hidden');
+    uploadStatusIndicator.classList.add('hidden');
+  }
+
+  async function handleAdminMasterIngest(file) {
+    if (!file) return;
+    adminUploadStatus.classList.remove('hidden');
+    adminUploadStatus.className = 'admin-upload-status';
+    adminUploadStatus.innerHTML = '<span class="upload-spinner"></span> Embedding & Ingesting into Global Master Knowledge Base...';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const sessionToken = localStorage.getItem('kube_session');
+      if (sessionToken) {
+        formData.append('admin_token', sessionToken);
+      }
+
+      const res = await fetch('/api/admin/master-ingest', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+      }
+
+      adminUploadStatus.className = 'admin-upload-status success';
+      adminUploadStatus.textContent = `✅ Success: Ingested ${data.chunks_indexed} chunks from '${data.filename}' into Global Master Knowledge Base!`;
+      adminMasterFileInput.value = '';
+    } catch (err) {
+      console.error('Admin Master Ingestion error:', err);
+      adminUploadStatus.className = 'admin-upload-status error';
+      adminUploadStatus.textContent = `❌ Ingestion Error: ${err.message}`;
+    }
+  }
+
+  function formatBytes(bytes, decimals = 1) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  }
+
 
   function renderTraceHtml(trace, sources) {
     if (!trace || !trace.steps || !trace.steps.length) return '';
