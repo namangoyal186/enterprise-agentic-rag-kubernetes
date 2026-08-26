@@ -567,12 +567,14 @@
         const isOk = (val) => Boolean(val && (val === 'connected' || String(val).startsWith('ok')));
 
         const services = [
-          { name: 'Neon PostgreSQL', role: 'Durable Memory & LangGraph State', ok: isOk(s.postgres) },
-          { name: 'Qdrant Vector Cloud', role: 'Hybrid Dense + Sparse Storage', ok: isOk(s.qdrant) },
-          { name: 'Upstash Redis', role: 'Sliding-Window Rate Limiter', ok: isOk(s.redis) },
-          { name: 'Jina AI API', role: 'Embeddings v3 & Reranker v2', ok: isOk(s.jina_embeddings) },
-          { name: 'Portkey AI Gateway', role: 'Qwen 2.5 27B / Google Gemini 2.5 (Responder Node)', ok: isOk(s.llm_gateway) },
+          { name: 'Neon PostgreSQL', role: 'Durable Memory & LangGraph State Checkpointer', ok: isOk(s.postgres) },
+          { name: 'Qdrant Vector Cloud', role: 'Hybrid Dense + Sparse Storage (1024-dim)', ok: isOk(s.qdrant) },
+          { name: 'Upstash Redis', role: 'Sliding-Window Rate Limiter & Token Guard', ok: isOk(s.redis) },
+          { name: 'Jina AI API', role: 'Embeddings v3 & Reranker v2 (Cross-Encoder)', ok: isOk(s.jina_embeddings) },
+          { name: 'Portkey AI Gateway', role: 'Unified LLM Gateway, Fallbacks & Semantic Caching', ok: isOk(s.llm_gateway) },
+          { name: 'Qwen 2.5 27B / Gemini 2.5', role: 'Technical Synthesis & Reasoning (Responder Node)', ok: isOk(s.llm_gateway) },
         ];
+
 
 
         healthBadgesContainer.innerHTML = services.map((svc) => `
