@@ -114,8 +114,10 @@ def generate_node(state: AgentState):
                 "status": status,
                 "plan": plan_update,
                 "documents": state.get("documents", []),
+                "current_query": query,
                 "messages": [{"role": "assistant", "content": content}],
             }
+
 
 
         except Exception as e:

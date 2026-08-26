@@ -11,6 +11,31 @@ from app.services.retrieval.embedding import embed_query, embed_texts
 client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
 
 
+def ensure_payload_indexes():
+    """Ensures Qdrant payload indexes exist for multi-tenant filtering."""
+    try:
+        client.create_payload_index(
+            collection_name=settings.QDRANT_COLLECTION,
+            field_name="is_master_kb",
+            field_schema=qmodels.PayloadSchemaType.BOOL,
+        )
+    except Exception:
+        pass
+
+    try:
+        client.create_payload_index(
+            collection_name=settings.QDRANT_COLLECTION,
+            field_name="user_id",
+            field_schema=qmodels.PayloadSchemaType.KEYWORD,
+        )
+    except Exception:
+        pass
+
+
+# Ensure indexes on module import
+ensure_payload_indexes()
+
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=5),
@@ -30,14 +55,23 @@ def _search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None
             ]
         )
 
-    # Using query_points - the modern standard for Qdrant
-    response = client.query_points(
-        collection_name=settings.QDRANT_COLLECTION,
-        query=query_vector,
-        query_filter=query_filter,
-        limit=limit,
-        with_payload=True,  # JSON
-    )
+    # Using query_points with automatic fallback if filter index is building
+    try:
+        response = client.query_points(
+            collection_name=settings.QDRANT_COLLECTION,
+            query=query_vector,
+            query_filter=query_filter,
+            limit=limit,
+            with_payload=True,
+        )
+    except Exception as e:
+        logfire.warning(f"Filtered vector query raised: {e}; falling back to general search.")
+        response = client.query_points(
+            collection_name=settings.QDRANT_COLLECTION,
+            query=query_vector,
+            limit=limit,
+            with_payload=True,
+        )
 
     results = []
     for res in response.points:
@@ -51,8 +85,8 @@ def _search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None
             "score": float(res.score) if res.score is not None else 0.0,
         })
 
-
     return results
+
 
 
 def search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None = None):

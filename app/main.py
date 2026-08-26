@@ -657,14 +657,22 @@ def query(
             answer = final_output.get("final_answer")
             thought_process = final_output.get("plan", [])
             sources = final_output.get("documents", [])
+            current_query = final_output.get("current_query", "")
 
             # Dynamic step durations based on actual invoke time
             planner_ms = round(agent_duration * 0.22 * 1000, 1)
             retrieval_ms = round(agent_duration * 0.28 * 1000, 1) if sources else 8.0
             synthesis_ms = round(agent_duration * 0.50 * 1000, 1)
 
-            planner_detail = "Classified: TECHNICAL_RAG (Query expanded & routed)" if sources else "Classified: CONVERSATIONAL (Fast-track direct response)"
-            retrieval_detail = f"Qdrant Hybrid Search • {len(sources)} chunks reranked (Jina score ≥ 0.85)" if sources else "Direct response (Vector search bypassed)"
+            is_technical = current_query and current_query != "CONVERSATIONAL"
+            if is_technical:
+                planner_detail = f"Classified: TECHNICAL_RAG (Query: '{current_query}')"
+                retrieval_status = f"{len(sources)} Chunks"
+                retrieval_detail = f"Qdrant Hybrid Search • {len(sources)} chunks reranked (Jina score ≥ 0.85)"
+            else:
+                planner_detail = "Classified: CONVERSATIONAL (Fast-track direct response)"
+                retrieval_status = "Bypassed"
+                retrieval_detail = "Direct response (Vector search bypassed)"
 
             trace = {
                 "total_latency_s": round(total_duration, 2),
@@ -686,10 +694,11 @@ def query(
                     {
                         "icon": "🔍",
                         "node": "Qdrant Hybrid Search",
-                        "status": f"{len(sources)} Chunks" if sources else "Bypassed",
+                        "status": retrieval_status,
                         "detail": retrieval_detail,
                         "duration_ms": retrieval_ms,
                     },
+
                     {
                         "icon": "🤖",
                         "node": "LLM Synthesis",
