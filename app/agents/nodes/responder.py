@@ -20,13 +20,22 @@ def _clean_think_tags(text: str) -> str:
     before_sleep=before_sleep_log(logfire, "warning"),
 )
 def _generate_response(prompt: str):
-    """Call the LLM gateway with retry logic for transient failures."""
-    return portkey_client.chat.completions.create(
-        model=f"@{settings.PORTKEY_PRIMARY_SLUG}/{settings.GROQ_MODEL}",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=4096,
-        temperature=0.3,
-    )
+    """Call the LLM gateway with fallback and retry logic for transient failures."""
+    try:
+        return portkey_client.chat.completions.create(
+            model=f"@{settings.PORTKEY_PRIMARY_SLUG}/{settings.GROQ_MODEL}",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2048,
+            temperature=0.3,
+        )
+    except Exception as primary_err:
+        logfire.warning(f"Primary model error ({primary_err}); switching to Portkey fallback.")
+        return portkey_client.chat.completions.create(
+            model=f"@{settings.PORTKEY_FALLBACK_SLUG}/gemini-2.0-flash",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2048,
+            temperature=0.3,
+        )
 
 
 def generate_node(state: AgentState):
@@ -45,7 +54,7 @@ def generate_node(state: AgentState):
     user_msg = state["messages"][-1]["content"] if state["messages"] else ""
 
     if query == "CONVERSATIONAL":
-        logfire.info("Generating conversational response using memory.")
+        logfire.info("Generating purely conversational / memory response.")
         prompt = f"""
         You are a friendly and helpful Enterprise AI Assistant.
         Answer the user's latest message using the CONVERSATION HISTORY below.
@@ -58,7 +67,7 @@ def generate_node(state: AgentState):
         """
     else:
         logfire.info("Generating technical RAG response.")
-        max_context_chars = 25000
+        max_context_chars = 12000
         full_context = ""
 
         for doc in state.get("documents", []):
