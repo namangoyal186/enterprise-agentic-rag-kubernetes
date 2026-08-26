@@ -55,8 +55,15 @@
   const adminMasterFileInput = document.getElementById('admin-master-file-input');
   const adminUploadStatus = document.getElementById('admin-upload-status');
 
+  // Upload Scope Modal Elements
+  const uploadScopeModal = document.getElementById('upload-scope-modal');
+  const closeUploadScopeBtn = document.getElementById('close-upload-scope-btn');
+  const btnScopePrivate = document.getElementById('btn-scope-private');
+  const btnScopeMaster = document.getElementById('btn-scope-master');
+
   let activeUploadedDoc = null;
   let isUploadingAttachment = false;
+
 
 
 
@@ -185,8 +192,32 @@
     // Attachment Controls
     if (btnAttach && fileAttachmentInput) {
       btnAttach.addEventListener('click', () => {
-        fileAttachmentInput.click();
+        if (currentUser && currentUser.email === 'namangoyal983@gmail.com' && uploadScopeModal) {
+          uploadScopeModal.classList.remove('hidden');
+        } else {
+          fileAttachmentInput.click();
+        }
       });
+
+      if (closeUploadScopeBtn && uploadScopeModal) {
+        closeUploadScopeBtn.addEventListener('click', () => {
+          uploadScopeModal.classList.add('hidden');
+        });
+      }
+
+      if (btnScopePrivate && fileAttachmentInput && uploadScopeModal) {
+        btnScopePrivate.addEventListener('click', () => {
+          uploadScopeModal.classList.add('hidden');
+          fileAttachmentInput.click();
+        });
+      }
+
+      if (btnScopeMaster && adminMasterFileInput && uploadScopeModal) {
+        btnScopeMaster.addEventListener('click', () => {
+          uploadScopeModal.classList.add('hidden');
+          adminMasterFileInput.click();
+        });
+      }
 
       fileAttachmentInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -201,6 +232,7 @@
         clearAttachment();
       });
     }
+
 
     // Admin Master Knowledge Ingest Dropzone
     if (adminDropzone && adminMasterFileInput) {
@@ -510,15 +542,6 @@
       messageContent.innerHTML = '';
       await streamText(messageContent, cleanAnswer);
 
-      // Render Retrieved Sources Accordion
-      if (data.sources && Array.isArray(data.sources) && data.sources.length > 0) {
-        const sourcesWrapper = document.createElement('div');
-        sourcesWrapper.innerHTML = renderSourcesAccordion(data.sources);
-        if (sourcesWrapper.firstElementChild) {
-          assistantRow.querySelector('.message-body').appendChild(sourcesWrapper.firstElementChild);
-        }
-      }
-
       // Render Per-Message Execution Trace Accordion
       if (data.trace) {
         const traceWrapper = document.createElement('div');
@@ -560,7 +583,6 @@
       trace = thoughtProcess.trace;
     }
 
-    const sourcesHtml = role === 'assistant' && sources && sources.length ? renderSourcesAccordion(sources) : '';
     const traceHtml = role === 'assistant' && trace ? renderTraceHtml(trace, sources) : '';
 
     row.innerHTML = `
@@ -568,13 +590,13 @@
       <div class="message-body">
         <div class="message-author">${role === 'user' ? (currentUser ? currentUser.name : 'You') : 'Kubernetes AI'}</div>
         <div class="message-content">${parsedHtml}</div>
-        ${sourcesHtml}
         ${traceHtml}
       </div>
     `;
 
     messagesContainer.appendChild(row);
   }
+
 
   function renderSourcesAccordion(sources) {
     if (!sources || !Array.isArray(sources) || sources.length === 0) return '';

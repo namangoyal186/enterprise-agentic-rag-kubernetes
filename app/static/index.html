@@ -20,7 +20,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css">
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 
-  <link rel="stylesheet" href="/static/style.css?v=2.1.5">
+  <link rel="stylesheet" href="/static/style.css?v=2.1.6">
+
 
 
 
@@ -330,9 +331,42 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=2.1.5"></script>
+  <!-- Upload Scope Modal for Admin -->
+  <div id="upload-scope-modal" class="modal-backdrop hidden">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">📤</span>
+          <div>
+            <h2 class="modal-title">Select Ingestion Scope</h2>
+            <p class="modal-subtitle">Choose how to ingest your document</p>
+          </div>
+        </div>
+        <button id="close-upload-scope-btn" class="modal-close">✕</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
+        <button type="button" id="btn-scope-private" class="scope-option-btn">
+          <span style="font-size: 24px;">💬</span>
+          <div style="text-align: left;">
+            <div style="font-weight: 600; font-size: 14px; color: var(--text-primary);">Attach to Current Chat</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Private to your session. Indexed into Qdrant for this conversation only.</div>
+          </div>
+        </button>
+        <button type="button" id="btn-scope-master" class="scope-option-btn admin-highlight">
+          <span style="font-size: 24px;">⭐</span>
+          <div style="text-align: left;">
+            <div style="font-weight: 600; font-size: 14px; color: #facc15;">Global Master Knowledge (Admin)</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Ingest official docs globally into Master Knowledge Base for all users.</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=2.1.6"></script>
 </body>
 </html>
+
 
 
 
