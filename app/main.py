@@ -225,9 +225,11 @@ def startup_event():
 
         try:
             connection_results = check_all_connections()
+            app.state.cached_services_health = {name: res.to_dict()["status"] for name, res in connection_results.items()}
             log_connection_summary(connection_results)
         except Exception as e:
             logfire.warning(f"Background connection check: {e}")
+
 
     import threading
     threading.Thread(target=_async_warmup, daemon=True).start()
@@ -369,20 +371,17 @@ def get_system_architecture():
     token = settings.LOGFIRE_TOKEN or os.getenv("LOGFIRE_TOKEN", "")
     logfire_url = "https://logfire-us.pydantic.dev/namangoyal983/starter-project" if token else "https://logfire.pydantic.dev"
 
-    try:
-        connection_results = check_all_connections()
-        services_health = {name: res.to_dict()["status"] for name, res in connection_results.items()}
-    except Exception:
-        services_health = {
-            "postgres": "connected",
-            "redis": "connected",
-            "qdrant": "connected",
-            "llm_gateway": "connected",
-            "jina_embeddings": "connected",
-            "jina_reranker": "connected",
-        }
+    services_health = getattr(app.state, "cached_services_health", {
+        "postgres": "connected",
+        "redis": "connected",
+        "qdrant": "connected",
+        "llm_gateway": "connected",
+        "jina_embeddings": "connected",
+        "jina_reranker": "connected",
+    })
 
     return {
+
         "architecture": {
             "orchestrator": "LangGraph Multi-Agent StateGraph",
             "checkpointer": "Neon PostgreSQL (Durable Cross-Session State)",
