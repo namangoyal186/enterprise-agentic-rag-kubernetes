@@ -20,7 +20,7 @@ def planner_node(state: AgentState):
     user_message = state["messages"][-1]["content"] if state["messages"] else ""
 
     prompt = f"""
-    You are an intelligent Assistant Planner.
+    You are an intelligent Assistant Planner for an Enterprise Kubernetes & Cloud Infrastructure system.
     Analyze the conversation history and the latest user message.
 
     CONVERSATION HISTORY:
@@ -29,12 +29,13 @@ def planner_node(state: AgentState):
     LATEST MESSAGE:
     "{user_message}"
 
-    Task:
-    1. If the latest message is a pure greeting (hi, hello, hey) or simple pleasantry (thanks, bye), respond with 'CONVERSATIONAL'.
-    2. If it is ANY technical question, inquiry about an attached/uploaded document or file, Kubernetes architecture, Intel hardware, networking, or infrastructure, output a refined search query.
+    Rules:
+    1. Return 'CONVERSATIONAL' ONLY if the message is purely a casual greeting ("hi", "hello", "hey"), social pleasantry ("thank you", "bye", "cool"), or asking who you are.
+    2. If the message contains ANY technical term (e.g. "kubectl", "pod", "deployment", "intel", "service", "ingress", "network", "helm", "cpu", "memory", "manifest", "file", "document"), or asks any infrastructure question, you MUST generate a refined 2-6 word search query for the Qdrant vector database.
 
-    Output ONLY 'CONVERSATIONAL' or the search query.
+    Output ONLY 'CONVERSATIONAL' or the refined search query.
     """
+
 
 
     with logfire.span("🧠 Planner Decision"):
