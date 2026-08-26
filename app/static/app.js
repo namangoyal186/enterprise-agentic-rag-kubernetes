@@ -602,10 +602,10 @@
 
 
   function renderProvenanceBadges(sources) {
-
     if (!sources || !Array.isArray(sources) || sources.length === 0) {
-      return '<div class="provenance-badge-bar"><span class="provenance-pill master">💬 Direct Technical Reasoning (Fast-Track)</span></div>';
+      return '<div class="provenance-badge-bar"><span class="provenance-pill master">💬 Conversational (Direct Response)</span></div>';
     }
+
 
     let hasMaster = false;
     const uploadFilenames = new Set();
