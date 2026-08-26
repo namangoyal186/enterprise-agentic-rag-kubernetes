@@ -673,11 +673,19 @@
   }
 
   // --- Multi-Document Ingestion & Attachment Handlers ---
+  const MAX_ATTACHMENTS = 5;
+
   async function handleFileAttachments(files) {
     if (!files || files.length === 0) return;
 
     const allowed = ['.pdf', '.yaml', '.yml', '.json', '.txt', '.md', '.csv'];
     const fileList = Array.from(files);
+
+    if (activeUploadedDocs.length + fileList.length > MAX_ATTACHMENTS) {
+      alert(`Maximum limit is ${MAX_ATTACHMENTS} documents at a time. You already have ${activeUploadedDocs.length} attached.`);
+      fileAttachmentInput.value = '';
+      return;
+    }
 
     attachmentPreviewBar.classList.remove('hidden');
     uploadStatusIndicator.classList.remove('hidden');
@@ -803,9 +811,12 @@
     if (!files || files.length === 0) return;
     const fileList = Array.from(files);
 
-    adminUploadStatus.classList.remove('hidden');
-    adminUploadStatus.className = 'admin-upload-status';
-    adminUploadStatus.innerHTML = `<span class="upload-spinner"></span> Embedding & Ingesting ${fileList.length} file(s) into Global Master Knowledge Base...`;
+    if (fileList.length > MAX_ATTACHMENTS) {
+      alert(`Maximum limit is ${MAX_ATTACHMENTS} documents per admin batch.`);
+      adminMasterFileInput.value = '';
+      return;
+    }
+
 
     let totalChunks = 0;
     let errors = [];
