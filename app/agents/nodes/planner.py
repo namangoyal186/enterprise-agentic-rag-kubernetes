@@ -30,11 +30,12 @@ def planner_node(state: AgentState):
     "{user_message}"
 
     Task:
-    1. If the latest message is a greeting (hi, hello) or a question that can be answered using ONLY the conversation history above (e.g., "what is my name"), respond with 'CONVERSATIONAL'.
-    2. If it is a technical question about Kubernetes, Intel, or Networking that requires fresh documentation, output a refined search query.
+    1. If the latest message is a pure greeting (hi, hello, hey) or simple pleasantry (thanks, bye), respond with 'CONVERSATIONAL'.
+    2. If it is ANY technical question, inquiry about an attached/uploaded document or file, Kubernetes architecture, Intel hardware, networking, or infrastructure, output a refined search query.
 
     Output ONLY 'CONVERSATIONAL' or the search query.
     """
+
 
     with logfire.span("🧠 Planner Decision"):
         decision = llm.invoke(prompt).content.strip()

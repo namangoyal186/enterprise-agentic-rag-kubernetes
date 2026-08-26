@@ -600,8 +600,12 @@
     messagesContainer.appendChild(row);
   }
 
+
   function renderProvenanceBadges(sources) {
-    if (!sources || !Array.isArray(sources) || sources.length === 0) return '';
+
+    if (!sources || !Array.isArray(sources) || sources.length === 0) {
+      return '<div class="provenance-badge-bar"><span class="provenance-pill master">💬 Direct Technical Reasoning (Fast-Track)</span></div>';
+    }
 
     let hasMaster = false;
     const uploadFilenames = new Set();
@@ -620,56 +624,16 @@
 
     const pills = [];
     if (hasMaster) {
-      pills.push('<span class="provenance-pill master">📚 Master Knowledge</span>');
+      pills.push('<span class="provenance-pill master">📚 Global Master Knowledge</span>');
     }
     uploadFilenames.forEach((fn) => {
       pills.push(`<span class="provenance-pill upload">📄 Attached Doc: ${escapeHtml(fn)}</span>`);
     });
 
-    if (pills.length === 0) return '';
+    if (pills.length === 0) {
+      return '<div class="provenance-badge-bar"><span class="provenance-pill master">📚 Global Master Knowledge</span></div>';
+    }
     return `<div class="provenance-badge-bar">${pills.join('')}</div>`;
-  }
-
-
-
-  function renderSourcesAccordion(sources) {
-    if (!sources || !Array.isArray(sources) || sources.length === 0) return '';
-
-    const itemsHtml = sources.map((src) => {
-      const isObj = typeof src === 'object' && src !== null;
-      const filename = isObj ? (src.filename || src.source || 'Knowledge Base') : 'Kubernetes Docs';
-      const isMaster = isObj ? (src.is_master_kb !== false) : true;
-
-      const badge = isMaster
-        ? '<span class="source-badge master">📚 Master Knowledge</span>'
-        : `<span class="source-badge upload">📄 Your Upload: ${escapeHtml(filename)}</span>`;
-
-      const rawText = isObj ? (src.content || src.text || '') : String(src);
-      const cleanSnippet = rawText.replace(/^CONTENT:\s*/i, '').trim();
-      const preview = cleanSnippet.length > 220 ? cleanSnippet.substring(0, 220) + '...' : cleanSnippet;
-
-      return `
-        <div class="source-item">
-          <div class="source-item-header">
-            ${badge}
-            ${isObj && src.score ? `<span class="source-score">Relevance: ${(src.score * 100).toFixed(0)}%</span>` : ''}
-          </div>
-          <div class="source-text">${escapeHtml(preview)}</div>
-        </div>
-      `;
-    }).join('');
-
-    return `
-      <div class="sources-card">
-        <div class="sources-header">
-          <span>📑 Retrieved Sources (${sources.length} chunks)</span>
-          <svg class="sources-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-        <div class="sources-list">
-          ${itemsHtml}
-        </div>
-      </div>
-    `;
   }
 
   // --- Multi-Document Ingestion & Attachment Handlers ---
@@ -679,12 +643,19 @@
     if (!files || files.length === 0) return;
 
     const allowed = ['.pdf', '.yaml', '.yml', '.json', '.txt', '.md', '.csv'];
-    const fileList = Array.from(files);
+    let fileList = Array.from(files);
 
-    if (activeUploadedDocs.length + fileList.length > MAX_ATTACHMENTS) {
-      alert(`Maximum limit is ${MAX_ATTACHMENTS} documents at a time. You already have ${activeUploadedDocs.length} attached.`);
+    const availableSlots = MAX_ATTACHMENTS - activeUploadedDocs.length;
+    if (availableSlots <= 0) {
+      attachmentPreviewBar.classList.remove('hidden');
+      uploadStatusIndicator.classList.remove('hidden');
+      uploadStatusText.innerHTML = `<span style="color: #f87171;">⚠️ Maximum limit of ${MAX_ATTACHMENTS} documents reached. Please remove one to add more.</span>`;
       fileAttachmentInput.value = '';
       return;
+    }
+
+    if (fileList.length > availableSlots) {
+      fileList = fileList.slice(0, availableSlots);
     }
 
     attachmentPreviewBar.classList.remove('hidden');
@@ -726,11 +697,10 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           if (res.status === 429) {
-            throw new Error("Rate limit reached: Maximum 20 uploads per minute. Please wait a moment before uploading again.");
+            throw new Error("Rate limit reached: Maximum 20 uploads per minute. Please wait a moment.");
           }
           throw new Error(data.error || data.detail || data.message || `HTTP ${res.status}`);
         }
-
 
         activeUploadedDocs.push({
           doc_id: data.doc_id,
@@ -742,6 +712,7 @@
         successCount++;
         totalChunks += data.chunks_indexed;
         renderAttachmentChips();
+        // Yield briefly between batch uploads
       } catch (err) {
         console.error(`Upload failed for ${file.name}:`, err);
         errors.push(`'${file.name}': ${err.message}`);
@@ -749,6 +720,7 @@
     }
 
     if (spinner) spinner.style.display = 'none';
+
     if (errors.length > 0 && successCount === 0) {
       uploadStatusText.innerHTML = `<span style="color: #f87171;">⚠️ ${errors.join('; ')}</span>`;
     } else if (errors.length > 0) {
