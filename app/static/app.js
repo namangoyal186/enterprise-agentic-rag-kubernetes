@@ -486,12 +486,13 @@
     const query = promptInput.value.trim();
     if (!query || isGenerating) return;
 
-    // Reset input
+    // Reset input and clear attachment preview
     promptInput.value = '';
     promptInput.style.height = 'auto';
     sendBtn.disabled = true;
     isGenerating = true;
 
+    clearAttachment();
     emptyState.classList.add('hidden');
 
     // Append User Message
@@ -542,6 +543,16 @@
       messageContent.innerHTML = '';
       await streamText(messageContent, cleanAnswer);
 
+      // Render Source Provenance Badges (e.g. Master Knowledge vs Attached Doc)
+      const provenanceHtml = renderProvenanceBadges(data.sources);
+      if (provenanceHtml) {
+        const badgeWrapper = document.createElement('div');
+        badgeWrapper.innerHTML = provenanceHtml;
+        if (badgeWrapper.firstElementChild) {
+          assistantRow.querySelector('.message-body').appendChild(badgeWrapper.firstElementChild);
+        }
+      }
+
       // Render Per-Message Execution Trace Accordion
       if (data.trace) {
         const traceWrapper = document.createElement('div');
@@ -583,6 +594,7 @@
       trace = thoughtProcess.trace;
     }
 
+    const provenanceHtml = role === 'assistant' && sources ? renderProvenanceBadges(sources) : '';
     const traceHtml = role === 'assistant' && trace ? renderTraceHtml(trace, sources) : '';
 
     row.innerHTML = `
@@ -590,12 +602,44 @@
       <div class="message-body">
         <div class="message-author">${role === 'user' ? (currentUser ? currentUser.name : 'You') : 'Kubernetes AI'}</div>
         <div class="message-content">${parsedHtml}</div>
+        ${provenanceHtml}
         ${traceHtml}
       </div>
     `;
 
     messagesContainer.appendChild(row);
   }
+
+  function renderProvenanceBadges(sources) {
+    if (!sources || !Array.isArray(sources) || sources.length === 0) return '';
+
+    let hasMaster = false;
+    const uploadFilenames = new Set();
+
+    sources.forEach((src) => {
+      if (typeof src === 'object' && src !== null) {
+        if (src.is_master_kb !== false) {
+          hasMaster = true;
+        } else if (src.filename) {
+          uploadFilenames.add(src.filename);
+        }
+      } else {
+        hasMaster = true;
+      }
+    });
+
+    const pills = [];
+    if (hasMaster) {
+      pills.push('<span class="provenance-pill master">📚 Master Knowledge</span>');
+    }
+    uploadFilenames.forEach((fn) => {
+      pills.push(`<span class="provenance-pill upload">📄 Attached Doc: ${escapeHtml(fn)}</span>`);
+    });
+
+    if (pills.length === 0) return '';
+    return `<div class="provenance-badge-bar">${pills.join('')}</div>`;
+  }
+
 
 
   function renderSourcesAccordion(sources) {
