@@ -356,13 +356,16 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @app.post("/api/documents/upload")
+@rate_limit(times=20, seconds=60)
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     user_id: str = Form("anonymous"),
     thread_id: Optional[str] = Form(None),
 ):
     """
     Upload and index a document into Qdrant for private session RAG.
+    Rate limited to 20 uploads per minute per user/IP.
     """
     ext = os.path.splitext(file.filename)[1].lower() if file.filename else ""
     if ext not in ALLOWED_EXTENSIONS:
@@ -413,11 +416,13 @@ async def upload_document(
 
 
 @app.post("/api/admin/master-ingest")
+@rate_limit(times=20, seconds=60)
 async def admin_master_ingest(
     request: Request,
     file: UploadFile = File(...),
     admin_token: Optional[str] = Form(None),
 ):
+
     """
     Admin-only endpoint to ingest new documentation into the Master Knowledge Base (is_master_kb = True).
     """
