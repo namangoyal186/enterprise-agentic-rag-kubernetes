@@ -11,11 +11,13 @@ def retrieve_node(state: AgentState):
     """
     query = state["current_query"]
     user_id = state.get("user_id")
+    thread_id = state.get("thread_id")
 
     # Standard Retrieval Logic
     with logfire.span("🔍 Knowledge Retrieval"):
-        logfire.info(f"Searching Qdrant for: {query} (user_id={user_id})")
-        raw_results = search_enterprise_knowledge(query, limit=15, user_id=user_id)
+        logfire.info(f"Searching Qdrant for: {query} (thread_id={thread_id})")
+        raw_results = search_enterprise_knowledge(query, limit=15, user_id=user_id, thread_id=thread_id)
+
         logfire.info(f"Retrieved {len(raw_results)} candidates from Vector DB")
 
         if not raw_results:

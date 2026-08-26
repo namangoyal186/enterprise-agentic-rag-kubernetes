@@ -12,7 +12,7 @@ client = QdrantClient(url=settings.QDRANT_URL, api_key=settings.QDRANT_API_KEY)
 
 
 def ensure_payload_indexes():
-    """Ensures Qdrant payload indexes exist for multi-tenant filtering."""
+    """Ensures Qdrant payload indexes exist for multi-tenant and thread filtering."""
     try:
         client.create_payload_index(
             collection_name=settings.QDRANT_COLLECTION,
@@ -31,6 +31,15 @@ def ensure_payload_indexes():
     except Exception:
         pass
 
+    try:
+        client.create_payload_index(
+            collection_name=settings.QDRANT_COLLECTION,
+            field_name="thread_id",
+            field_schema=qmodels.PayloadSchemaType.KEYWORD,
+        )
+    except Exception:
+        pass
+
 
 # Ensure indexes on module import
 ensure_payload_indexes()
@@ -42,12 +51,24 @@ ensure_payload_indexes()
     reraise=True,
     before_sleep=before_sleep_log(logfire, "warning"),
 )
-def _search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None = None):
-    """Internal search with retry logic and multi-tenant filtering."""
+def _search_enterprise_knowledge(
+    query: str,
+    limit: int = 8,
+    user_id: str | None = None,
+    thread_id: str | None = None,
+):
+    """Internal search with retry logic and thread/tenant-scoped filtering."""
     query_vector = embed_query(query)
 
     query_filter = None
-    if user_id:
+    if thread_id:
+        query_filter = qmodels.Filter(
+            should=[
+                qmodels.FieldCondition(key="is_master_kb", match=qmodels.MatchValue(value=True)),
+                qmodels.FieldCondition(key="thread_id", match=qmodels.MatchValue(value=thread_id)),
+            ]
+        )
+    elif user_id:
         query_filter = qmodels.Filter(
             should=[
                 qmodels.FieldCondition(key="is_master_kb", match=qmodels.MatchValue(value=True)),
@@ -82,23 +103,29 @@ def _search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None
             "filename": payload.get("filename", payload.get("source", "Unknown")),
             "is_master_kb": payload.get("is_master_kb", True),
             "user_id": payload.get("user_id"),
+            "thread_id": payload.get("thread_id"),
             "score": float(res.score) if res.score is not None else 0.0,
         })
 
     return results
 
 
-
-def search_enterprise_knowledge(query: str, limit: int = 8, user_id: str | None = None):
+def search_enterprise_knowledge(
+    query: str,
+    limit: int = 8,
+    user_id: str | None = None,
+    thread_id: str | None = None,
+):
     """
     Performs a high-precision search in the enterprise knowledge base.
-    If user_id is provided, searches both Master Knowledge AND user-uploaded documents.
+    If thread_id is provided, searches Master Knowledge AND documents uploaded in this specific thread.
     """
     try:
-        return _search_enterprise_knowledge(query, limit=limit, user_id=user_id)
+        return _search_enterprise_knowledge(query, limit=limit, user_id=user_id, thread_id=thread_id)
     except Exception as e:
         logfire.error(f"❌ Qdrant Search Failed after retries: {e}")
         return []
+
 
 
 def upsert_document_chunks(

@@ -25,7 +25,7 @@ def _generate_response(prompt: str):
         return portkey_client.chat.completions.create(
             model=f"@{settings.PORTKEY_PRIMARY_SLUG}/{settings.GROQ_MODEL}",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=2048,
+            max_tokens=3072,
             temperature=0.3,
         )
     except Exception as primary_err:
@@ -33,9 +33,10 @@ def _generate_response(prompt: str):
         return portkey_client.chat.completions.create(
             model=f"@{settings.PORTKEY_FALLBACK_SLUG}/gemini-2.0-flash",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=2048,
+            max_tokens=3072,
             temperature=0.3,
         )
+
 
 
 def generate_node(state: AgentState):
