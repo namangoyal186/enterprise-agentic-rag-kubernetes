@@ -581,16 +581,16 @@
           <div class="health-badge-card">
             <div class="health-badge-left">
               <span class="badge-dot ${svc.ok ? 'green' : 'red'}"></span>
-              <div>
-                <div class="health-service-name">${escapeHtml(svc.name)}</div>
-                <div class="health-service-role">${escapeHtml(svc.role)}</div>
-              </div>
+              <span class="health-service-name">${escapeHtml(svc.name)}</span>
+              <span class="health-service-sep">—</span>
+              <span class="health-service-role">${escapeHtml(svc.role)}</span>
             </div>
             <div class="health-status-pill ${svc.ok ? 'online' : 'offline'}">
               ${svc.ok ? 'Operational' : 'Degraded'}
             </div>
           </div>
         `).join('');
+
       }
     } catch (err) {
       console.warn('Could not fetch architecture metadata:', err);
