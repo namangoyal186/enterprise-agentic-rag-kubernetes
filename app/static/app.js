@@ -16,9 +16,9 @@
   const loginView = document.getElementById('login-view');
   const chatView = document.getElementById('chat-view');
   const sidebar = document.getElementById('sidebar');
-  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
   const newChatBtn = document.getElementById('new-chat-btn');
   const threadsList = document.getElementById('threads-list');
+
   const logoutBtn = document.getElementById('logout-btn');
   const userAvatar = document.getElementById('user-avatar');
   const userName = document.getElementById('user-name');
@@ -107,12 +107,6 @@
         } else {
           sidebar.classList.add('collapsed');
         }
-      });
-    }
-
-    if (sidebarToggleBtn) {
-      sidebarToggleBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
       });
     }
   }
