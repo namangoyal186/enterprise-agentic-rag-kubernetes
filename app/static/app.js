@@ -571,8 +571,9 @@
           { name: 'Qdrant Vector Cloud', role: 'Hybrid Dense + Sparse Storage', ok: isOk(s.qdrant) },
           { name: 'Upstash Redis', role: 'Sliding-Window Rate Limiter', ok: isOk(s.redis) },
           { name: 'Jina AI API', role: 'Embeddings v3 & Reranker v2', ok: isOk(s.jina_embeddings) },
-          { name: 'LLM Gateway', role: 'Qwen 2.5 27B / Google Gemini 2.5', ok: isOk(s.llm_gateway) },
+          { name: 'Portkey AI Gateway', role: 'Qwen 2.5 27B / Google Gemini 2.5 (Responder Node)', ok: isOk(s.llm_gateway) },
         ];
+
 
         healthBadgesContainer.innerHTML = services.map((svc) => `
           <div class="health-badge-card">

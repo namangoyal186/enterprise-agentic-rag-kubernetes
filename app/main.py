@@ -386,8 +386,9 @@ def get_system_architecture():
             "orchestrator": "LangGraph Multi-Agent StateGraph",
             "checkpointer": "Neon PostgreSQL (Durable Cross-Session State)",
             "guardrails": "NeMo Security Guardrails (L1 Pre-Execution Filter)",
-            "primary_model": "Qwen 2.5 27B / Google Gemini 2.5 (OpenRouter / Groq)",
+            "primary_model": "Qwen 2.5 27B / Google Gemini 2.5 (via Portkey AI Gateway)",
             "embedding_model": "Jina Embeddings v3 (1024-dim Dense Vectors)",
+
             "reranker": "Jina Reranker v2 (Cross-Encoder Scoring)",
             "vector_store": "Qdrant Cloud (Hybrid Dense + Sparse Search)",
             "rate_limiter": "Upstash Redis Fixed-Window Rate Limiter",
@@ -557,9 +558,10 @@ def query(
                         "icon": "🤖",
                         "node": "LLM Synthesis",
                         "status": "SUCCESS",
-                        "detail": "Qwen 2.5 27B / Gemini 2.5 (Cloud Gateway)",
+                        "detail": "Qwen 2.5 27B / Google Gemini 2.5 (Portkey AI Gateway)",
                         "duration_ms": synthesis_ms,
                     },
+
                     {
                         "icon": "🗄️",
                         "node": "Postgres Checkpointer",
