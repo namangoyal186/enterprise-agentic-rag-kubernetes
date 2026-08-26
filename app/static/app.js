@@ -689,15 +689,20 @@
         chunks_indexed: data.chunks_indexed,
       };
 
-      uploadStatusText.textContent = `✅ Ready (${data.chunks_indexed} chunks indexed)`;
+      uploadStatusText.innerHTML = `✅ Ready (${data.chunks_indexed} chunks indexed)`;
+      const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
+      if (spinner) spinner.style.display = 'none';
     } catch (err) {
       console.error('Attachment upload failed:', err);
-      uploadStatusText.textContent = `❌ ${err.message}`;
+      const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
+      if (spinner) spinner.style.display = 'none';
+      uploadStatusText.innerHTML = `<span style="color: #f87171; font-weight: 500;">⚠️ ${escapeHtml(err.message)}</span>`;
     } finally {
       isUploadingAttachment = false;
       sendBtn.disabled = !promptInput.value.trim() || isGenerating;
     }
   }
+
 
   function clearAttachment() {
     activeUploadedDoc = null;

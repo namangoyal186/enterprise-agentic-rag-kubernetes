@@ -63,8 +63,14 @@ def process_uploaded_document(file_path: str, filename: str, chunk_size: int = 1
     """
     text = extract_document_text(file_path, filename)
     if not text or not text.strip():
-        raise ValueError(f"Could not extract any readable text from '{filename}'.")
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == ".pdf":
+            raise ValueError(
+                f"Could not extract digital text from '{filename}'. This PDF appears to be a scanned image or photo without selectable text. Please upload text-based PDFs, YAML/JSON configs, CSV, or Markdown files."
+            )
+        raise ValueError(f"File '{filename}' is empty or contains no readable text.")
     chunks = chunk_text(text, chunk_size=chunk_size)
     if not chunks:
-        raise ValueError(f"No chunks generated from '{filename}'.")
+        raise ValueError(f"No chunks could be generated from '{filename}'.")
     return chunks
+
