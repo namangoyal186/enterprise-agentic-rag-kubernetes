@@ -1016,6 +1016,15 @@ body {
   box-sizing: border-box;
 }
 
+.attachment-chips-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+
 .attached-file-chip {
   display: inline-flex;
   align-items: center;

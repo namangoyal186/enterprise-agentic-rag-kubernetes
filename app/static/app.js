@@ -43,9 +43,7 @@
   const fileAttachmentInput = document.getElementById('file-attachment-input');
   const btnAttach = document.getElementById('btn-attach');
   const attachmentPreviewBar = document.getElementById('attachment-preview-bar');
-  const attachedFilename = document.getElementById('attached-filename');
-  const attachedFilesize = document.getElementById('attached-filesize');
-  const btnRemoveAttachment = document.getElementById('btn-remove-attachment');
+  const attachmentChipsContainer = document.getElementById('attachment-chips-container');
   const uploadStatusIndicator = document.getElementById('upload-status-indicator');
   const uploadStatusText = document.getElementById('upload-status-text');
 
@@ -61,8 +59,9 @@
   const btnScopePrivate = document.getElementById('btn-scope-private');
   const btnScopeMaster = document.getElementById('btn-scope-master');
 
-  let activeUploadedDoc = null;
+  let activeUploadedDocs = [];
   let isUploadingAttachment = false;
+
 
 
 
@@ -220,19 +219,11 @@
       }
 
       fileAttachmentInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          handleFileAttachment(file);
+        if (e.target.files && e.target.files.length > 0) {
+          handleFileAttachments(e.target.files);
         }
       });
     }
-
-    if (btnRemoveAttachment) {
-      btnRemoveAttachment.addEventListener('click', () => {
-        clearAttachment();
-      });
-    }
-
 
     // Admin Master Knowledge Ingest Dropzone
     if (adminDropzone && adminMasterFileInput) {
@@ -241,9 +232,8 @@
       });
 
       adminMasterFileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          handleAdminMasterIngest(file);
+        if (e.target.files && e.target.files.length > 0) {
+          handleAdminMasterIngest(e.target.files);
         }
       });
 
@@ -259,12 +249,12 @@
       adminDropzone.addEventListener('drop', (e) => {
         e.preventDefault();
         adminDropzone.style.borderColor = '';
-        const file = e.dataTransfer.files[0];
-        if (file) {
-          handleAdminMasterIngest(file);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleAdminMasterIngest(e.dataTransfer.files);
         }
       });
     }
+
 
     // Sources & Trace Accordion Toggles in messages
     messagesContainer.addEventListener('click', (e) => {
@@ -682,112 +672,182 @@
     `;
   }
 
-  // --- Document Ingestion & Attachment Handlers ---
-  async function handleFileAttachment(file) {
-    if (!file) return;
+  // --- Multi-Document Ingestion & Attachment Handlers ---
+  async function handleFileAttachments(files) {
+    if (!files || files.length === 0) return;
 
     const allowed = ['.pdf', '.yaml', '.yml', '.json', '.txt', '.md', '.csv'];
-    const ext = '.' + file.name.split('.').pop().toLowerCase();
-    if (!allowed.includes(ext)) {
-      alert(`Unsupported file format '${ext}'. Allowed formats: PDF, YAML, JSON, TXT, MD, CSV.`);
-      fileAttachmentInput.value = '';
-      return;
-    }
+    const fileList = Array.from(files);
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File exceeds the 10MB limit.');
-      fileAttachmentInput.value = '';
-      return;
-    }
-
-    // Show preview chip
-    attachedFilename.textContent = file.name;
-    attachedFilesize.textContent = `(${formatBytes(file.size)})`;
     attachmentPreviewBar.classList.remove('hidden');
     uploadStatusIndicator.classList.remove('hidden');
-    uploadStatusText.textContent = 'Parsing & Indexing into Qdrant...';
+    const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
+    if (spinner) spinner.style.display = 'inline-block';
+    uploadStatusText.textContent = `Parsing & Indexing ${fileList.length} document(s)...`;
     isUploadingAttachment = true;
     sendBtn.disabled = true;
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('user_id', currentUser ? currentUser.user_id : 'anonymous');
-      if (currentThreadId) {
-        formData.append('thread_id', currentThreadId);
+    let successCount = 0;
+    let totalChunks = 0;
+    let errors = [];
+
+    for (const file of fileList) {
+      const ext = '.' + file.name.split('.').pop().toLowerCase();
+      if (!allowed.includes(ext)) {
+        errors.push(`'${file.name}': Unsupported format`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        errors.push(`'${file.name}': Exceeds 10MB`);
+        continue;
       }
 
-      const res = await fetch('/api/documents/upload', {
-        method: 'POST',
-        body: formData,
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('user_id', currentUser ? currentUser.user_id : 'anonymous');
+        if (currentThreadId) {
+          formData.append('thread_id', currentThreadId);
+        }
+
+        const res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+        }
+
+        activeUploadedDocs.push({
+          doc_id: data.doc_id,
+          filename: data.filename,
+          size: file.size,
+          chunks_indexed: data.chunks_indexed,
+        });
+
+        successCount++;
+        totalChunks += data.chunks_indexed;
+        renderAttachmentChips();
+      } catch (err) {
+        console.error(`Upload failed for ${file.name}:`, err);
+        errors.push(`'${file.name}': ${err.message}`);
+      }
+    }
+
+    if (spinner) spinner.style.display = 'none';
+    if (errors.length > 0 && successCount === 0) {
+      uploadStatusText.innerHTML = `<span style="color: #f87171;">⚠️ ${errors.join('; ')}</span>`;
+    } else if (errors.length > 0) {
+      uploadStatusText.innerHTML = `✅ ${successCount} indexed (${totalChunks} chunks) <span style="color: #f87171;">[${errors.length} failed]</span>`;
+    } else {
+      uploadStatusText.innerHTML = `✅ Ready (${activeUploadedDocs.length} file(s), ${totalChunks} chunks indexed)`;
+    }
+
+    fileAttachmentInput.value = '';
+    isUploadingAttachment = false;
+    sendBtn.disabled = !promptInput.value.trim() || isGenerating;
+  }
+
+  function renderAttachmentChips() {
+    if (!attachmentChipsContainer) return;
+    attachmentChipsContainer.innerHTML = '';
+
+    if (activeUploadedDocs.length === 0) {
+      attachmentPreviewBar.classList.add('hidden');
+      uploadStatusIndicator.classList.add('hidden');
+      return;
+    }
+
+    attachmentPreviewBar.classList.remove('hidden');
+
+    activeUploadedDocs.forEach((doc, idx) => {
+      const chip = document.createElement('div');
+      chip.className = 'attached-file-chip';
+      chip.innerHTML = `
+        <span class="chip-icon">📄</span>
+        <span class="chip-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
+        <span class="chip-size">(${formatBytes(doc.size || 0)})</span>
+        <button type="button" class="btn-remove-chip" data-idx="${idx}" title="Remove file">✕</button>
+      `;
+
+      chip.querySelector('.btn-remove-chip').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeAttachmentAtIndex(idx);
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || data.message || `HTTP ${res.status}`);
-      }
+      attachmentChipsContainer.appendChild(chip);
+    });
+  }
 
-      activeUploadedDoc = {
-        doc_id: data.doc_id,
-        filename: data.filename,
-        chunks_indexed: data.chunks_indexed,
-      };
-
-      uploadStatusText.innerHTML = `✅ Ready (${data.chunks_indexed} chunks indexed)`;
-      const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
-      if (spinner) spinner.style.display = 'none';
-    } catch (err) {
-      console.error('Attachment upload failed:', err);
-      const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
-      if (spinner) spinner.style.display = 'none';
-      uploadStatusText.innerHTML = `<span style="color: #f87171; font-weight: 500;">⚠️ ${escapeHtml(err.message)}</span>`;
-    } finally {
-      isUploadingAttachment = false;
-      sendBtn.disabled = !promptInput.value.trim() || isGenerating;
+  function removeAttachmentAtIndex(idx) {
+    activeUploadedDocs.splice(idx, 1);
+    renderAttachmentChips();
+    if (activeUploadedDocs.length === 0) {
+      clearAttachment();
+    } else {
+      uploadStatusText.innerHTML = `✅ Ready (${activeUploadedDocs.length} file(s) attached)`;
     }
   }
 
-
   function clearAttachment() {
-    activeUploadedDoc = null;
+    activeUploadedDocs = [];
     fileAttachmentInput.value = '';
+    if (attachmentChipsContainer) attachmentChipsContainer.innerHTML = '';
     attachmentPreviewBar.classList.add('hidden');
     uploadStatusIndicator.classList.add('hidden');
   }
 
-  async function handleAdminMasterIngest(file) {
-    if (!file) return;
+  async function handleAdminMasterIngest(files) {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+
     adminUploadStatus.classList.remove('hidden');
     adminUploadStatus.className = 'admin-upload-status';
-    adminUploadStatus.innerHTML = '<span class="upload-spinner"></span> Embedding & Ingesting into Global Master Knowledge Base...';
+    adminUploadStatus.innerHTML = `<span class="upload-spinner"></span> Embedding & Ingesting ${fileList.length} file(s) into Global Master Knowledge Base...`;
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const sessionToken = localStorage.getItem('kube_session');
-      if (sessionToken) {
-        formData.append('admin_token', sessionToken);
+    let totalChunks = 0;
+    let errors = [];
+
+    for (const file of fileList) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const sessionToken = localStorage.getItem('kube_session');
+        if (sessionToken) {
+          formData.append('admin_token', sessionToken);
+        }
+
+        const res = await fetch('/api/admin/master-ingest', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+        }
+        totalChunks += data.chunks_indexed;
+      } catch (err) {
+        console.error(`Admin Ingestion failed for ${file.name}:`, err);
+        errors.push(`'${file.name}': ${err.message}`);
       }
+    }
 
-      const res = await fetch('/api/admin/master-ingest', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || data.message || `HTTP ${res.status}`);
-      }
-
-      adminUploadStatus.className = 'admin-upload-status success';
-      adminUploadStatus.textContent = `✅ Success: Ingested ${data.chunks_indexed} chunks from '${data.filename}' into Global Master Knowledge Base!`;
-      adminMasterFileInput.value = '';
-    } catch (err) {
-      console.error('Admin Master Ingestion error:', err);
+    adminMasterFileInput.value = '';
+    if (errors.length > 0 && totalChunks === 0) {
       adminUploadStatus.className = 'admin-upload-status error';
-      adminUploadStatus.textContent = `❌ Ingestion Error: ${err.message}`;
+      adminUploadStatus.textContent = `❌ Ingestion Error: ${errors.join('; ')}`;
+    } else if (errors.length > 0) {
+      adminUploadStatus.className = 'admin-upload-status warning';
+      adminUploadStatus.textContent = `⚠️ Partial Ingestion: Ingested ${totalChunks} chunks. Failed: ${errors.join('; ')}`;
+    } else {
+      adminUploadStatus.className = 'admin-upload-status success';
+      adminUploadStatus.textContent = `✅ Success: Ingested ${totalChunks} chunks from ${fileList.length} file(s) into Global Master Knowledge Base!`;
     }
   }
+
 
   function formatBytes(bytes, decimals = 1) {
     if (bytes === 0) return '0 Bytes';
