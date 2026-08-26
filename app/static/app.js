@@ -482,6 +482,8 @@
     sendBtn.disabled = true;
     isGenerating = true;
 
+    // Ingest any staged files before sending query
+    const filesToUpload = [...stagedFiles];
     clearAttachment();
     emptyState.classList.add('hidden');
 
@@ -509,6 +511,25 @@
     const messageContent = assistantRow.querySelector('#active-message-content');
 
     try {
+      if (filesToUpload.length > 0) {
+        for (const file of filesToUpload) {
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('user_id', currentUser ? currentUser.user_id : 'anonymous');
+            if (currentThreadId) {
+              formData.append('thread_id', currentThreadId);
+            }
+            await fetch('/api/documents/upload', {
+              method: 'POST',
+              body: formData,
+            });
+          } catch (uploadErr) {
+            console.warn('Document upload notice:', uploadErr);
+          }
+        }
+      }
+
       const payload = {
         q: query,
         thread_id: currentThreadId,
@@ -520,6 +541,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
 
       const data = await res.json();
 
@@ -636,20 +658,21 @@
     return `<div class="provenance-badge-bar">${pills.join('')}</div>`;
   }
 
-  // --- Multi-Document Ingestion & Attachment Handlers ---
+  // --- Multi-Document Ingestion & Attachment Handlers (Stage on Select, Ingest on Send) ---
   const MAX_ATTACHMENTS = 5;
+  let stagedFiles = [];
 
-  async function handleFileAttachments(files) {
+  function handleFileAttachments(files) {
     if (!files || files.length === 0) return;
 
     const allowed = ['.pdf', '.yaml', '.yml', '.json', '.txt', '.md', '.csv'];
     let fileList = Array.from(files);
 
-    const availableSlots = MAX_ATTACHMENTS - activeUploadedDocs.length;
+    const availableSlots = MAX_ATTACHMENTS - stagedFiles.length;
     if (availableSlots <= 0) {
       attachmentPreviewBar.classList.remove('hidden');
       uploadStatusIndicator.classList.remove('hidden');
-      uploadStatusText.innerHTML = `<span style="color: #f87171;">⚠️ Maximum limit of ${MAX_ATTACHMENTS} documents reached. Please remove one to add more.</span>`;
+      uploadStatusText.innerHTML = `<span style="color: #f87171;">⚠️ Maximum limit of ${MAX_ATTACHMENTS} documents reached.</span>`;
       fileAttachmentInput.value = '';
       return;
     }
@@ -658,101 +681,46 @@
       fileList = fileList.slice(0, availableSlots);
     }
 
-    attachmentPreviewBar.classList.remove('hidden');
-    uploadStatusIndicator.classList.remove('hidden');
-    const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
-    if (spinner) spinner.style.display = 'inline-block';
-    uploadStatusText.textContent = `Parsing & Indexing ${fileList.length} document(s)...`;
-    isUploadingAttachment = true;
-    sendBtn.disabled = true;
-
-    let successCount = 0;
-    let totalChunks = 0;
-    let errors = [];
-
     for (const file of fileList) {
       const ext = '.' + file.name.split('.').pop().toLowerCase();
       if (!allowed.includes(ext)) {
-        errors.push(`'${file.name}': Unsupported format`);
+        alert(`Unsupported file format '${ext}'. Allowed formats: PDF, YAML, JSON, TXT, MD, CSV.`);
         continue;
       }
       if (file.size > 10 * 1024 * 1024) {
-        errors.push(`'${file.name}': Exceeds 10MB`);
+        alert(`'${file.name}' exceeds the 10MB limit.`);
         continue;
       }
-
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('user_id', currentUser ? currentUser.user_id : 'anonymous');
-        if (currentThreadId) {
-          formData.append('thread_id', currentThreadId);
-        }
-
-        const res = await fetch('/api/documents/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          if (res.status === 429) {
-            throw new Error("Rate limit reached: Maximum 20 uploads per minute. Please wait a moment.");
-          }
-          throw new Error(data.error || data.detail || data.message || `HTTP ${res.status}`);
-        }
-
-        activeUploadedDocs.push({
-          doc_id: data.doc_id,
-          filename: data.filename,
-          size: file.size,
-          chunks_indexed: data.chunks_indexed,
-        });
-
-        successCount++;
-        totalChunks += data.chunks_indexed;
-        renderAttachmentChips();
-        // Yield briefly between batch uploads
-      } catch (err) {
-        console.error(`Upload failed for ${file.name}:`, err);
-        errors.push(`'${file.name}': ${err.message}`);
-      }
+      stagedFiles.push(file);
     }
 
-    if (spinner) spinner.style.display = 'none';
-
-    if (errors.length > 0 && successCount === 0) {
-      uploadStatusText.innerHTML = `<span style="color: #f87171;">⚠️ ${errors.join('; ')}</span>`;
-    } else if (errors.length > 0) {
-      uploadStatusText.innerHTML = `✅ ${successCount} indexed (${totalChunks} chunks) <span style="color: #f87171;">[${errors.length} failed]</span>`;
-    } else {
-      uploadStatusText.innerHTML = `✅ Ready (${activeUploadedDocs.length} file(s), ${totalChunks} chunks indexed)`;
-    }
-
+    renderAttachmentChips();
     fileAttachmentInput.value = '';
-    isUploadingAttachment = false;
-    sendBtn.disabled = !promptInput.value.trim() || isGenerating;
   }
 
   function renderAttachmentChips() {
     if (!attachmentChipsContainer) return;
     attachmentChipsContainer.innerHTML = '';
 
-    if (activeUploadedDocs.length === 0) {
+    if (stagedFiles.length === 0) {
       attachmentPreviewBar.classList.add('hidden');
       uploadStatusIndicator.classList.add('hidden');
       return;
     }
 
     attachmentPreviewBar.classList.remove('hidden');
+    uploadStatusIndicator.classList.remove('hidden');
+    const spinner = uploadStatusIndicator.querySelector('.upload-spinner');
+    if (spinner) spinner.style.display = 'none';
+    uploadStatusText.innerHTML = `📎 ${stagedFiles.length} file(s) attached`;
 
-    activeUploadedDocs.forEach((doc, idx) => {
+    stagedFiles.forEach((file, idx) => {
       const chip = document.createElement('div');
       chip.className = 'attached-file-chip';
       chip.innerHTML = `
         <span class="chip-icon">📄</span>
-        <span class="chip-name" title="${escapeHtml(doc.filename)}">${escapeHtml(doc.filename)}</span>
-        <span class="chip-size">(${formatBytes(doc.size || 0)})</span>
+        <span class="chip-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+        <span class="chip-size">(${formatBytes(file.size || 0)})</span>
         <button type="button" class="btn-remove-chip" data-idx="${idx}" title="Remove file">✕</button>
       `;
 
@@ -766,17 +734,12 @@
   }
 
   function removeAttachmentAtIndex(idx) {
-    activeUploadedDocs.splice(idx, 1);
+    stagedFiles.splice(idx, 1);
     renderAttachmentChips();
-    if (activeUploadedDocs.length === 0) {
-      clearAttachment();
-    } else {
-      uploadStatusText.innerHTML = `✅ Ready (${activeUploadedDocs.length} file(s) attached)`;
-    }
   }
 
   function clearAttachment() {
-    activeUploadedDocs = [];
+    stagedFiles = [];
     fileAttachmentInput.value = '';
     if (attachmentChipsContainer) attachmentChipsContainer.innerHTML = '';
     attachmentPreviewBar.classList.add('hidden');
@@ -793,6 +756,9 @@
       return;
     }
 
+    adminUploadStatus.classList.remove('hidden');
+    adminUploadStatus.className = 'admin-upload-status';
+    adminUploadStatus.innerHTML = `<span class="upload-spinner"></span> Embedding & Ingesting ${fileList.length} file(s) into Global Master Knowledge Base...`;
 
     let totalChunks = 0;
     let errors = [];
