@@ -625,8 +625,9 @@
 
   function renderProvenanceBadges(sources) {
     if (!sources || !Array.isArray(sources) || sources.length === 0) {
-      return '<div class="provenance-badge-bar"><span class="provenance-pill master">💬 Conversational (Direct Response)</span></div>';
+      return '';
     }
+
 
 
     let hasMaster = false;
