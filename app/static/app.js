@@ -723,10 +723,14 @@
           body: formData,
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+          if (res.status === 429) {
+            throw new Error("Rate limit reached: Maximum 20 uploads per minute. Please wait a moment before uploading again.");
+          }
+          throw new Error(data.error || data.detail || data.message || `HTTP ${res.status}`);
         }
+
 
         activeUploadedDocs.push({
           doc_id: data.doc_id,
@@ -835,10 +839,14 @@
           body: formData,
         });
 
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(data.detail || data.message || `HTTP ${res.status}`);
+          if (res.status === 429) {
+            throw new Error("Admin rate limit reached: Maximum 20 uploads per minute. Please wait a moment.");
+          }
+          throw new Error(data.error || data.detail || data.message || `HTTP ${res.status}`);
         }
+
         totalChunks += data.chunks_indexed;
       } catch (err) {
         console.error(`Admin Ingestion failed for ${file.name}:`, err);
