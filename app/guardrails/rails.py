@@ -46,11 +46,14 @@ GREETING_PATTERNS = [
 
 # 3. Allowed Domain Keywords (Enterprise Infrastructure Topics)
 ALLOWED_DOMAIN_KEYWORDS = {
-    # Kubernetes / Containers
-    "kubernetes", "k8s", "pod", "pods", "deployment", "deployments", "cronjob", "cronjobs",
-    "job", "jobs", "cluster", "clusters", "ingress", "service", "services", "namespace",
-    "daemonset", "statefulset", "helm", "kubectl", "container", "containers", "docker",
-    "cni", "hpa", "autoscaling", "parallelism", "node", "nodes", "configmap", "secret",
+    # Kubernetes / Containers / Cloud Native
+    "kubernetes", "k8s", "kube", "pod", "pods", "deployment", "deployments", "cronjob", "cronjobs",
+    "job", "jobs", "cluster", "clusters", "ingress", "service", "services", "namespace", "namespaces",
+    "daemonset", "statefulset", "helm", "kubectl", "container", "containers", "docker", "cbr0",
+    "cni", "hpa", "vpa", "autoscaling", "scaling", "scale", "horizontal", "vertical", "parallelism",
+    "node", "nodes", "configmap", "configmaps", "secret", "secrets", "crd", "operator", "etcd",
+    "kubelet", "kube-proxy", "apiserver", "scheduler", "ebpf", "cilium", "calico", "flannel", "istio",
+    "envoy", "service-mesh", "mesh", "rbac", "networkpolicy",
     
     # Intel & Hardware Optimization
     "intel", "xeon", "fpga", "fpgas", "nic", "nics", "sriov", "sr-iov", "hardware",
@@ -59,8 +62,13 @@ ALLOWED_DOMAIN_KEYWORDS = {
     # Enterprise Networking & Datacenter
     "vlan", "vlans", "bgp", "sdn", "routing", "firewall", "firewalls", "subnet",
     "gateway", "switch", "packet", "mtu", "ip", "ipv4", "ipv6", "redis", "queue",
-    "database", "devops", "linux", "kernel", "storage", "pv", "pvc"
+    "database", "devops", "linux", "kernel", "storage", "pv", "pvc", "volume",
+
+    # Document & Attachment Inquiries
+    "document", "documents", "file", "files", "pdf", "yaml", "yml", "json", "manifest",
+    "attached", "attachment", "upload", "uploaded", "summary", "summarize", "analyze",
 }
+
 
 CLASSIFIER_PROMPT = """You are an Enterprise IT Security & Topic Gatekeeper.
 
