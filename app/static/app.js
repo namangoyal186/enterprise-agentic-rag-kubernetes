@@ -30,17 +30,8 @@
   const sendBtn = document.getElementById('send-btn');
   const emptyState = document.getElementById('empty-state');
 
-  // Modal Elements
-  const architectureModalBtn = document.getElementById('architecture-modal-btn');
-  const architectureModal = document.getElementById('architecture-modal');
-  const modalCloseBtn = document.getElementById('modal-close-btn');
-  const modalTabs = document.querySelectorAll('.modal-tab');
-  const tabContents = document.querySelectorAll('.tab-content');
-  const agentsGrid = document.getElementById('agents-grid');
-  const healthBadgesContainer = document.getElementById('health-badges-container');
-  const logfireExternalLink = document.getElementById('logfire-external-link');
-
   // --- Initialization ---
+
   async function init() {
     setupMarked();
     setupEventListeners();
@@ -120,49 +111,10 @@
         }
       });
     }
-
-    // Architecture & Telemetry Modal Listeners
-    if (architectureModalBtn && architectureModal) {
-      architectureModalBtn.addEventListener('click', () => {
-        architectureModal.classList.remove('hidden');
-        fetchSystemArchitecture();
-      });
-    }
-
-    if (modalCloseBtn && architectureModal) {
-      modalCloseBtn.addEventListener('click', () => {
-        architectureModal.classList.add('hidden');
-      });
-    }
-
-    if (architectureModal) {
-      architectureModal.addEventListener('click', (e) => {
-        if (e.target === architectureModal) {
-          architectureModal.classList.add('hidden');
-        }
-      });
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && architectureModal && !architectureModal.classList.contains('hidden')) {
-        architectureModal.classList.add('hidden');
-      }
-    });
-
-    // Tab Switching
-    modalTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        modalTabs.forEach(t => t.classList.remove('active'));
-        tabContents.forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        const target = document.getElementById(tab.dataset.tab);
-        if (target) target.classList.add('active');
-      });
-    });
   }
 
-
   // --- Authentication ---
+
   async function checkAuth() {
     // 1. Check URL parameters for session token or error
     const urlParams = new URLSearchParams(window.location.search);
@@ -483,44 +435,8 @@
     });
   }
 
-  async function fetchSystemArchitecture() {
-    try {
-      const res = await fetch('/api/system/architecture');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      // 1. Update Logfire link
-      if (data.logfire_url && logfireExternalLink) {
-        logfireExternalLink.href = data.logfire_url;
-      }
-
-      // 2. Render Agent Cards
-      if (agentsGrid && data.agents && data.agents.length) {
-        agentsGrid.innerHTML = data.agents.map(a => `
-          <div class="agent-card">
-            <div class="agent-card-header">
-              <span class="agent-card-title">${escapeHtml(a.name)}</span>
-              <span class="agent-card-role">${escapeHtml(a.role)}</span>
-            </div>
-            <p class="agent-card-desc">${escapeHtml(a.description)}</p>
-          </div>
-        `).join('');
-      }
-
-      // 3. Update Health Badges
-      if (healthBadgesContainer && data.services_health) {
-        const s = data.services_health;
-        healthBadgesContainer.innerHTML = `
-          <div class="health-badge"><span class="badge-dot ${s.postgres === 'connected' ? 'green' : 'yellow'}"></span> Neon PostgreSQL (Durable Memory: ${escapeHtml(s.postgres || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.qdrant === 'connected' ? 'green' : 'yellow'}"></span> Qdrant Hybrid Vector Store (${escapeHtml(s.qdrant || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.redis === 'connected' ? 'green' : 'yellow'}"></span> Upstash Redis Limiter (${escapeHtml(s.redis || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.jina_embeddings === 'connected' ? 'green' : 'yellow'}"></span> Jina AI Embeddings & Reranker (${escapeHtml(s.jina_embeddings || 'connected')})</div>
-          <div class="health-badge"><span class="badge-dot ${s.llm_gateway === 'connected' ? 'green' : 'yellow'}"></span> LLM Gateway OpenRouter / Groq (${escapeHtml(s.llm_gateway || 'connected')})</div>
-        `;
-      }
-    } catch (err) {
-      console.warn('Could not fetch architecture metadata:', err);
-    }
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Run on DOM ready
@@ -530,4 +446,5 @@
     init();
   }
 })();
+
 
