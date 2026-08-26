@@ -61,12 +61,14 @@ def generate_node(state: AgentState):
         max_context_chars = 25000
         full_context = ""
 
-        for doc in state["documents"]:
-            if len(full_context) + len(doc) < max_context_chars:
-                full_context += doc + "\n\n"
+        for doc in state.get("documents", []):
+            doc_text = doc["content"] if isinstance(doc, dict) else str(doc)
+            if len(full_context) + len(doc_text) < max_context_chars:
+                full_context += doc_text + "\n\n"
             else:
                 logfire.warning("Context truncated to fit Groq TPM limits.")
                 break
+
 
         prompt = f"""
         You are a Senior Technical Architect.
@@ -106,8 +108,10 @@ def generate_node(state: AgentState):
                 "final_answer": content,
                 "status": status,
                 "plan": plan_update,
+                "documents": state.get("documents", []),
                 "messages": [{"role": "assistant", "content": content}],
             }
+
 
         except Exception as e:
             logfire.error(f"LLM Generation failed after retries: {e}")

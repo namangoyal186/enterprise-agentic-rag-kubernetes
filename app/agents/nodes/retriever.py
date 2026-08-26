@@ -18,6 +18,12 @@ def retrieve_node(state: AgentState):
         raw_results = search_enterprise_knowledge(query, limit=15, user_id=user_id)
         logfire.info(f"Retrieved {len(raw_results)} candidates from Vector DB")
 
+        if not raw_results:
+            return {
+                "documents": [],
+                "status": "No specific documents matched.",
+                "plan": state["plan"] + ["No Documents Found"],
+            }
 
         doc_contents = [doc["content"] for doc in raw_results]
 
@@ -25,10 +31,18 @@ def retrieve_node(state: AgentState):
             reranked_contents = rerank_documents(query, doc_contents, top_n=5)
             logfire.info("Reranking complete. Kept top 5 most relevant chunks.")
 
-        formatted_docs = [f"CONTENT: {doc}" for doc in reranked_contents]
+        # Re-attach metadata for the top reranked chunks
+        final_docs = []
+        for text in reranked_contents:
+            matched_raw = next((r for r in raw_results if r["content"] == text), None)
+            if matched_raw:
+                final_docs.append(matched_raw)
+            else:
+                final_docs.append({"content": text, "is_master_kb": True, "source": "Master Knowledge"})
 
     return {
-        "documents": formatted_docs,
+        "documents": final_docs,
         "status": "Found technical context.",
         "plan": state["plan"] + ["Context Retrieved"],
     }
+
