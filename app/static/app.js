@@ -36,9 +36,9 @@
   const modalCloseBtn = document.getElementById('modal-close-btn');
   const modalTabs = document.querySelectorAll('.modal-tab');
   const tabContents = document.querySelectorAll('.tab-content');
-  const agentsGrid = document.getElementById('agents-grid');
   const healthBadgesContainer = document.getElementById('health-badges-container');
   const logfireExternalLink = document.getElementById('logfire-external-link');
+
 
   // --- Initialization ---
 
@@ -497,20 +497,8 @@
         logfireExternalLink.href = data.logfire_url;
       }
 
-      // 2. Render Agent Cards
-      if (agentsGrid && data.agents && data.agents.length) {
-        agentsGrid.innerHTML = data.agents.map(a => `
-          <div class="agent-card">
-            <div class="agent-card-header">
-              <span class="agent-card-title">${escapeHtml(a.name)}</span>
-              <span class="agent-card-role">${escapeHtml(a.role)}</span>
-            </div>
-            <p class="agent-card-desc">${escapeHtml(a.description)}</p>
-          </div>
-        `).join('');
-      }
+      // 2. Update Health Badges
 
-      // 3. Update Health Badges
       if (healthBadgesContainer && data.services_health) {
         const s = data.services_health;
         healthBadgesContainer.innerHTML = `
